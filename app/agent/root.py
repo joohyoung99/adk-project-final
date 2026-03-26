@@ -6,7 +6,7 @@ from google.adk.tools import AgentTool
 from app.agent.workflows import run_sequential_docu_summary_pipeline, run_parallel_tech_compare_pipeline, run_sequential_rag_pipeline
 from app.config.settings import settings
 from app.prompt.instructions import supervisor_instruction
-from app.tool.callbacks import tool_callbacks
+from app.tool.callbacks import before_agent_callback
 
 
 supervisor_agent = LlmAgent(
@@ -17,8 +17,8 @@ supervisor_agent = LlmAgent(
         run_sequential_docu_summary_pipeline,
         run_parallel_tech_compare_pipeline,
         run_sequential_rag_pipeline
-
     ],
+    before_agent_callback=before_agent_callback
 )
 
 root_agent = supervisor_agent

@@ -8,12 +8,14 @@ from google.genai import types
 from app.config.settings import settings
 from app.mcp.toolsets import filesystem_toolset
 from app.prompt.instructions import (
-  
+    rewrite_rag_instruction,
     merge_instruction,
+    answer_rag_instruction,
+    validation_rag_instruction,
 
     save_to_file_instruction,
     summary_only_instruction,
-    ragengine_search_instruction,
+    rag_search_instruction,
 )
 from app.tool.callbacks import tool_callbacks
 
@@ -74,9 +76,7 @@ def search_vertex_rag(query: str) -> str:
             ],
         ),
     )
-    return response.text or "Vertex RAG 검색 결과가 비어 있습니다."
-
-
+    return response.text or ""
 
 
 
@@ -86,11 +86,10 @@ def search_vertex_rag(query: str) -> str:
 def make_merge_agent() -> LlmAgent:
     """수집 결과 병합 전용 에이전트를 만든다."""
     return LlmAgent(
-        name="MergeAgent",
-        model=settings.model,
-        instruction=merge_instruction,
-        output_key="merged_result",
-        **tool_callbacks(),
+        name= "MergeAgent",
+        model= settings.model,
+        instruction= merge_instruction,
+        output_key= "merged_result",
     )
 
 
@@ -98,32 +97,57 @@ def make_merge_agent() -> LlmAgent:
 def make_save_to_file_agent() -> LlmAgent:
     """filesystem MCP로 결과를 저장하는 에이전트를 만든다."""
     return LlmAgent(
-        name="SaveToFileAgent",
-        model=settings.model,
-        instruction=save_to_file_instruction,
-        tools=[filesystem_toolset],
-        output_key="save_result",
-        **tool_callbacks(),
+        name= "SaveToFileAgent",
+        model= settings.model,
+        instruction= save_to_file_instruction,
+        tools= [filesystem_toolset],
+        output_key= "save_result",
     )
 
 
 def make_summary_only_agent() -> LlmAgent:
     """최종 응답을 간단히 요약하는 에이전트를 만든다."""
     return LlmAgent(
-        name="SummaryOnlyAgent",
-        model=settings.model,
-        instruction=summary_only_instruction,
-        **tool_callbacks(),
+        name= "SummaryOnlyAgent",
+        model= settings.model,
+        instruction= summary_only_instruction,
+
     )
 
 
-def make_ragengine_search_agent() -> LlmAgent:
+def make_rag_search_agent() -> LlmAgent:
     """Vertex RAG 검색 툴을 사용하는 에이전트를 만든다."""
+  
     return LlmAgent(
-        name="RAGEngineSearchAgent",
-        model=settings.model,
-        instruction=ragengine_search_instruction,
-        tools=[FunctionTool(search_vertex_rag)],
-        output_key="ragengine_result",
-        **tool_callbacks(),
+        name= "RAGEngineSearchAgent",
+        model= settings.model,
+        instruction= rag_search_instruction,
+        tools= [FunctionTool(search_vertex_rag)],
+        output_key= "rag_result",
+    )
+
+
+def make_rewrite_ragsearch_agent() -> LlmAgent:
+    return LlmAgent(
+        name= "Rewrite(RAG)Agent",
+        model= settings.model,
+        instruction= rewrite_rag_instruction,
+        output_key= "rewrite_rag",
+    )
+
+def make_answer_rag_agent() -> LlmAgent:
+    return LlmAgent(
+        name= "RagAnswerAgent",
+        model= settings.model,
+        instruction= answer_rag_instruction,
+        output_key= "answer",
+        # after_model_callback="",
+    )
+
+def make_validation_rag_agent() -> LlmAgent:
+    return LlmAgent(
+        name= "ValidationRagAgent",
+        model= settings.model,
+        instruction= validation_rag_instruction,
+
     )
