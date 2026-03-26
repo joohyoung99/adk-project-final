@@ -60,7 +60,7 @@ Google ADK로 만든 CLI 챗봇입니다.
 │   └── tool/
 │       └── callbacks.py            # callback 연결
 └── secrets/
-    └── gcp_account_credentials.json
+
 ```
 
 ## 요구 사항
