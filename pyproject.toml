@@ -1,0 +1,13 @@
+[project]
+name = "adk-project-mcp"
+version = "0.1.0"
+description = "Google ADK multi-agent CLI with filesystem MCP, Notion MCP, and PostgreSQL session memory"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "asyncpg>=0.31.0",
+    "fastmcp>=3.1.1",
+    "google-adk>=1.16.0",
+    "httpx>=0.28.1",
+    "python-dotenv>=1.2.2",
+]

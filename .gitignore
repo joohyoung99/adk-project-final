@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+
+# Local environment and secrets
+.env
+app/.env
+secrets/
+
+
+# Local tooling
+.python-version
+
+# Logs
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Windows metadata files in WSL mounts
+*.Zone.Identifier
+*:Zone.Identifier
+
+# Node leftovers
+node_modules/
+package-lock.json
