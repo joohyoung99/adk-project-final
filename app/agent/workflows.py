@@ -8,9 +8,8 @@ from app.agent.sub_agents import (
     make_save_to_file_agent,
     make_summary_only_agent,
     make_rag_search_agent,
-    make_rewrite_ragsearch_agent,
-    make_answer_rag_agent,
-    make_validation_rag_agent
+    make_rag_rewrite_agent,
+    make_rag_answer_agent,
 )
 
 def parallel_collect_agent() -> ParallelAgent:
@@ -53,10 +52,9 @@ def run_sequential_rag_pipeline() -> SequentialAgent:
     return SequentialAgent(
     name="run_sequential_rag_pipeline",
     sub_agents=[
-        make_rewrite_ragsearch_agent(),
+        make_rag_rewrite_agent(),
         make_rag_search_agent(),
-        make_answer_rag_agent(),
-        make_validation_rag_agent(),
+        make_rag_answer_agent(),
     ],
     description=(
         "RAG 엔진을 이용해 검색을 수행하고, 결과를 요약 응답한다."

@@ -69,7 +69,7 @@ async def run_chat_cli() -> None:
         session_service=session_service,
     )
     session = await session_service.create_session(
-        app_name=settings.google_agent_engine,
+        app_name=settings.google_agent_engine_name,
         user_id=settings.user_id,
     )
 
