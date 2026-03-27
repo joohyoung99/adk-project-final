@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import argparse
 import asyncio
 
-from app.config.settings import settings
 from app.services.chat_cli import run_chat_cli
 
 

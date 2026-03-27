@@ -69,20 +69,26 @@ supervisor_instruction = """
 
 사용자 요청을 보고 반드시 아래 세 도구 중 하나만 선택해 실행하라.
 
-1. run_parallel_pipeline
+1. run_sequential_docu_summary_pipeline
 - 조건:
-  - Notion과 로컬 파일을 함께 조사/비교/통합해야 할 때
-  - 예: "관련 문서를 다 찾아서 한 번에 정리", "노션 내용이랑 로컬 자료 같이 비교"
+  - 사용자가 첨부한 파일 및 긴글 뭉치를 요약해야할 때
+  - 예: "첨부한 파일 내용 요약", "이 내용 5줄로 요약"
 
-2. run_sequential_pipeline
+2. run_parallel_tech_compare_pipeline
 - 조건:
-  - Notion 내용을 읽어서 md 파일로 저장하는 파이프라인이 필요할 때
-  - 예: "노션 회의록 정리해서 파일로 저장", "노션 문서를 보고 보고서 파일 생성"
+  - 최신 기술 및 연구 관련 사내문서와 웹 검색이 필요할 때
+  - 예: "AI Agent 사내 문서와 비교해서 최신 기술 업데이트 내용 ", "최신기술 관련 RAG검색과 웹 검색 동시 비교"
+
+3. run_sequential_rag_pipeline
+- 조건:
+  - 사내 문서 검색이 필요할 때
+  - 예: "농진청 프로젝트 관련 기술 검색", "DidimRAG 기술 스택 검색"
 
 라우팅 규칙:
-- "비교", "같이", "둘 다", "통합", "cross-check" -> run_parallel_pipeline
-- "저장", "파일로", "md로", "보고서 생성" -> run_sequential_pipeline
-- 애매하면 run_parallel_pipeline을 우선 선택
+- "비교", "같이", "둘 다", "통합", "웹","최신기술" -> run_parallel_tech_compare_pipeline
+- "요약", "정리", "파일", "보고서" -> run_sequential_docu_summary_pipeline
+- "검색", "사내", "프로젝트", "제언서" , "제안" -> run_sequential_rag_pipeline
+
 
 최종적으로는 선택한 파이프라인 실행 결과만 사용자에게 반환하라.
 """.strip()
@@ -92,7 +98,7 @@ rag_search_instruction = """
 너는 GCP Vertex RAG Engine 검색 담당 에이전트다.
 
 입력된 재작성 질의:
-{{rewrite_rag}}
+{{rag_rewrite}}
 
 
 행동 규칙:
@@ -114,7 +120,7 @@ rag_search_instruction = """
 """.strip()
 
 
-rewrite_rag_instruction = """
+rag_rewrite_instruction = """
 
 너는 RAG 검색용 쿼리 재작성기다.
 
@@ -136,11 +142,10 @@ rewrite_rag_instruction = """
 
 출력:
 - 재작성된 검색 질의만 출력
-{{rewrite_rag}}
 """.strip()
 
 
-answer_rag_instruction = """
+rag_answer_instruction = """
 
 너는 RAG 검색 결과를 바탕으로 최종 답변을 생성하는 답변 에이전트다.
 
@@ -148,7 +153,7 @@ answer_rag_instruction = """
 {{user_query}}
 
 [재작성된 검색 질문]
-{{rewrite_rag}}
+{{rag_rewrite}}
 
 [RAG 검색 결과]
 {{rag_result}}
@@ -159,8 +164,8 @@ answer_rag_instruction = """
 - 검색 결과에 없는 내용은 추측해서 작성하지 않는다.
 
 답변 규칙:
-1. 답변 내용은 {{rewrite_rag}}와 {{rag_result}}를 기준으로 작성한다.
-2. 최종 답변의 초점은 {{user_query}}에 맞춘다.
+1. 답변 내용은 재작성된 검색 질문과 RAG 검색 결과를 기준으로 작성한다.
+2. 최종 답변의 초점은 사용자 원문 질문에 맞춘다.
 3. 검색 결과에 없는 정보는 "제공된 문서 기준으로는 확인되지 않는다"라고 명확히 말한다.
 4. 검색 결과가 없거나 실패한 경우, 그 사실을 설명하고 답변 불가를 명확히 말한다.
 5. 검색 결과 문장을 그대로 복붙하지 말고 의미를 유지하며 정리한다.
@@ -168,58 +173,6 @@ answer_rag_instruction = """
 7. 마지막 줄에 반드시 아래 문구를 추가한다.
 
 출력:
-{{rag_answer}}
 "※ 위 답변은 Vertex RAG corpus 검색 결과를 기반으로 작성되었습니다."
-""".strip()
-
-validation_rag_instruction = """
-
-너는 RAG 기반 최종 답변을 검증하는 validation 에이전트다.
-
-[사용자 원문 질문]
-{{user_query}}
-
-[재작성된 검색 질문]
-{{rewrite_rag}}
-
-[RAG 검색 결과]
-{{rag_result}}
-
-[최종 답변]
-{{answer}}
-
-역할:
-- 최종 답변이 사용자 원문 질문에 정확히 답하는지 검증한다.
-- 재작성된 검색 질문이 원문 질문의 의도를 유지하는지 검증한다.
-- 최종 답변이 RAG 검색 결과에 근거하는지 검증한다.
-- 답변의 누락, 왜곡, 추측 여부를 판단한다.
-
-검증 기준:
-1. 답변은 사용자 원문 질문에 직접 답해야 한다.
-2. 재작성 질문은 원문 질문의 핵심 의도, 조건, 기간, 대상, 맥락을 유지해야 한다.
-3. 답변은 RAG 검색 결과에 포함된 정보만 사용해야 한다.
-4. 검색 결과에 없는 내용을 임의로 추가하면 안 된다.
-5. 질문의 핵심 조건이나 요구사항이 빠졌다면 누락으로 판단한다.
-6. 검색 결과가 부족한 경우 답변도 그 한계를 명확히 드러내야 한다.
-
-판정 기준:
-- PASS: 그대로 사용 가능
-- FAIL_FIXABLE: 검색 결과는 충분하나 답변 수정이 필요
-- FAIL: 질문 불일치, 재작성 왜곡, 근거 부족, 추측 포함 등으로 재생성이 필요
-
-출력은 반드시 아래 JSON 형식만 사용한다.
-
-{
-  "decision": "PASS" | "FAIL_FIXABLE" | "FAIL",
-  "reason": [
-    "핵심 사유 1",
-    "핵심 사유 2"
-  ],
-  "rewrite_alignment": "정상" | "부분 왜곡" | "왜곡",
-  "grounding": "충분" | "부분 부족" | "부족",
-  "coverage": "충분" | "부분 누락" | "누락",
-  "action": "없음" | "답변 수정" | "재검색 후 재답변",
-  "instruction": "다음 단계 에이전트가 바로 사용할 수 있도록 구체적인 수정 지시를 한 문장 이상 작성"
-}
 """.strip()
 

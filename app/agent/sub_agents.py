@@ -8,16 +8,14 @@ from google.genai import types
 from app.config.settings import settings
 from app.mcp.toolsets import filesystem_toolset
 from app.prompt.instructions import (
-    rewrite_rag_instruction,
+    rag_rewrite_instruction,
     merge_instruction,
-    answer_rag_instruction,
-    validation_rag_instruction,
-
+    rag_answer_instruction,
     save_to_file_instruction,
     summary_only_instruction,
     rag_search_instruction,
 )
-from app.tool.callbacks import tool_callbacks
+from app.tool.callbacks import after_agent_callback
 
 
 
@@ -90,6 +88,7 @@ def make_merge_agent() -> LlmAgent:
         model= settings.model,
         instruction= merge_instruction,
         output_key= "merged_result",
+   
     )
 
 
@@ -102,6 +101,7 @@ def make_save_to_file_agent() -> LlmAgent:
         instruction= save_to_file_instruction,
         tools= [filesystem_toolset],
         output_key= "save_result",
+  
     )
 
 
@@ -111,7 +111,7 @@ def make_summary_only_agent() -> LlmAgent:
         name= "SummaryOnlyAgent",
         model= settings.model,
         instruction= summary_only_instruction,
-
+    
     )
 
 
@@ -119,35 +119,28 @@ def make_rag_search_agent() -> LlmAgent:
     """Vertex RAG 검색 툴을 사용하는 에이전트를 만든다."""
   
     return LlmAgent(
-        name= "RAGEngineSearchAgent",
+        name= "RAGSearchAgent",
         model= settings.model,
         instruction= rag_search_instruction,
         tools= [FunctionTool(search_vertex_rag)],
         output_key= "rag_result",
+  
     )
 
 
-def make_rewrite_ragsearch_agent() -> LlmAgent:
+def make_rag_rewrite_agent() -> LlmAgent:
     return LlmAgent(
-        name= "Rewrite(RAG)Agent",
+        name= "RagRewriteAgent",
         model= settings.model,
-        instruction= rewrite_rag_instruction,
-        output_key= "rewrite_rag",
+        instruction= rag_rewrite_instruction,
+        output_key= "rag_rewrite",
     )
 
-def make_answer_rag_agent() -> LlmAgent:
+def make_rag_answer_agent() -> LlmAgent:
     return LlmAgent(
         name= "RagAnswerAgent",
         model= settings.model,
-        instruction= answer_rag_instruction,
+        instruction= rag_answer_instruction,
         output_key= "answer",
-        # after_model_callback="",
-    )
-
-def make_validation_rag_agent() -> LlmAgent:
-    return LlmAgent(
-        name= "ValidationRagAgent",
-        model= settings.model,
-        instruction= validation_rag_instruction,
-
+        after_agent_callback= after_agent_callback,
     )

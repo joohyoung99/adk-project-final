@@ -16,7 +16,6 @@ def main() -> None:
         location= settings.google_cloud_location,
     )
 
-
     client = vertexai.Client(
         project=settings.google_cloud_project,
         location=settings.google_cloud_location,

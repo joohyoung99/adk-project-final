@@ -28,7 +28,7 @@ class Settings:
     model: str = os.getenv("MODEL_GEMINI_2_5_FLASH", "gemini-2.5-flash")
     filesystem_allowed_dirs: list[str] = None  # type: ignore[assignment]
     vertex_rag_location: str = os.getenv("VERTEX_RAG_LOCATION", "asia-northeast3")
-    vertex_rag_corpus: str = os.getenv("VERTEX_RAG_CORPUS", "projects/854975691211/locations/asia-northeast3/ragCorpora/2017612633061982208") #TODO: 변경 할것
+    vertex_rag_corpus: str = os.getenv("VERTEX_RAG_CORPUS","") 
     google_cloud_project: str = os.getenv("GOOGLE_CLOUD_PROJECT", "")
     google_cloud_location: str = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
     google_agent_engine_name: str = os.getenv("REASONING_ENGINE_APP_NAME","")
