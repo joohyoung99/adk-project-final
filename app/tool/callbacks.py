@@ -35,8 +35,6 @@ SPECULATION_KEYWORDS = (
     "가능성이",
     "예상",
     "보입니다",
-    "일 수 있습니다",
-    "일수 있습니다",
 )
 
 GROUNDING_NOTICE = "※ 위 답변은 Vertex RAG corpus 검색 결과를 기반으로 작성되었습니다."
@@ -134,7 +132,6 @@ def _validate_rag_response(callback_context: CallbackContext) -> types.Content |
     if rag_rewrite and rag_rewrite not in answer and "제공된 문서 기준으로는 확인되지 않는다" not in answer:
         answer = (
             f"{answer.rstrip()}\n\n"
-            f"검색 기준 질문: {rag_rewrite}"
         )
 
     return _build_model_content(answer)
