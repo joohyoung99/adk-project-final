@@ -37,9 +37,6 @@ def print_event_debug(event: object) -> None:
         print(f"\n[FUNCTION CALL] {function_call.name}")
         print(_compact(function_call.args))
 
-    for function_response in event.get_function_responses():
-        print(f"\n[FUNCTION RESPONSE] {function_response.name}")
-        print(_compact(function_response.response))
 
 
 def print_banner() -> None:
