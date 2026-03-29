@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 import vertexai
 
 from app.config.settings import settings
