@@ -6,6 +6,8 @@ from google.adk.agents.sequential_agent import SequentialAgent
 
 from app.agent.sub_agents import (
     make_merge_agent,
+    make_parallel_answer_agent,
+    make_parallel_rewrite_agent,
     make_save_to_file_agent,
     make_summary_only_agent,
     make_rag_search_agent,
@@ -30,11 +32,10 @@ def run_parallel_tech_compare_pipeline() -> SequentialAgent:
     return SequentialAgent(
     name="run_parallel_tech_compare_pipeline",
     sub_agents=[
-        # 쿼리 재작성 Agent 추가
+        make_parallel_rewrite_agent(),
         parallel_collect_agent(),
         make_merge_agent(),
-        # 답변을 생성하는 Agent 추가
-        # validation Agent 추가
+        make_parallel_answer_agent()
     ],
     description="병렬 수집 후 머지해서 사용자에게 요약 응답한다.",
 )

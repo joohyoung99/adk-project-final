@@ -27,6 +27,10 @@ INTERNAL_DOC_KEYWORDS = (
     "notion",
     "rag",
     "internal",
+    "기술",
+    "요약",
+    "비교",
+    "외부",
 )
 
 SPECULATION_KEYWORDS = (
@@ -100,8 +104,8 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
         return None
 
     return _build_model_content(
-        "사내 문서, 사내 프로젝트, 내부 기술 자료와 관련된 질문만 답변할 수 있습니다. "
-        "사내 문서 기준으로 다시 질문해 주세요."
+        "저는 최신 기술과 사내 보유 기술의 비교 분석, 사내 문서, 사내 프로젝트, 내부 기술 자료와 관련된 질문에만 답변할 수 있습니다."
+         "사내 문서를 기준으로 다시 질문해 주세요."
     )
 
 
@@ -123,7 +127,7 @@ def _validate_rag_response(callback_context: CallbackContext) -> types.Content |
     if any(keyword in answer for keyword in SPECULATION_KEYWORDS):
         return _build_model_content(
             "현재 생성된 답변에는 문서 근거 없이 추측성 표현이 포함되어 있어 반환하지 않습니다. "
-            "제공된 사내 문서 기준으로만 다시 질의해 주세요."
+            "사내 문서 기준으로만 다시 질의해 주세요."
         )
 
     if GROUNDING_NOTICE not in answer:
@@ -140,8 +144,6 @@ def _validate_rag_response(callback_context: CallbackContext) -> types.Content |
 def _validate_summary_response(callback_context: CallbackContext) -> types.Content | None:
     """문서 요약 결과가 최소 구조를 갖췄는지 검증한다."""
     summary = _state_get(callback_context, "summary")
-    if not summary:
-        summary = _state_get(callback_context, "merged_result")
 
     if not summary:
         return _build_model_content(
@@ -157,10 +159,8 @@ def _validate_summary_response(callback_context: CallbackContext) -> types.Conte
 
 def _validate_tech_compare_response(callback_context: CallbackContext) -> types.Content | None:
     """기술 비교 결과가 비교/추천 형식을 갖추는지 검증한다."""
-    compare_result = _state_get(callback_context, "tech_compare_result")
-    if not compare_result:
-        compare_result = _state_get(callback_context, "merged_result")
-
+    compare_result = _state_get(callback_context, "parallel_answer")
+    
     if not compare_result:
         return _build_model_content(
             "기술 비교 결과가 비어 있어 응답을 생성할 수 없습니다. "
@@ -186,7 +186,7 @@ def after_agent_callback(callback_context: CallbackContext) -> types.Content | N
     if agent_name == "SummaryOnlyAgent" or _has_state_value(callback_context, "summary"):
         return _validate_summary_response(callback_context)
 
-    if agent_name == "MergeAgent" or _has_state_value(callback_context, "tech_compare_result"):
+    if agent_name == "ParallelAnswerAgent" or _has_state_value(callback_context, "parallel_answer"):
         return _validate_tech_compare_response(callback_context)
 
     return None
