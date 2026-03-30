@@ -11,6 +11,8 @@ from app.agent.sub_agents import (
     make_rag_search_agent,
     make_rag_rewrite_agent,
     make_rag_answer_agent,
+    make_docu_rewrite_agent, #추가
+    make_docu_generation_agent #추가
 )
 
 def parallel_collect_agent() -> ParallelAgent:
@@ -43,8 +45,8 @@ def run_sequential_docu_summary_pipeline() -> SequentialAgent:
     return SequentialAgent(
     name="run_sequential_docu_summary_pipeline",
     sub_agents=[
-       # 쿼리 재작성 Agent 추가
-       # 답변 생성 Agent 추가 
+       make_docu_rewrite_agent(),    # 쿼리 재작성 Agent 추가
+       make_docu_generation_agent(),  # 답변 생성 Agent 추가 
        # validation Agent 추가
     ],
     description="사용자의 문서를 받고 요약 응답한다.",

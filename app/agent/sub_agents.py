@@ -15,6 +15,8 @@ from app.prompt.instructions import (
     save_to_file_instruction,
     summary_only_instruction,
     rag_search_instruction,
+    docu_rewrite_instruction, #추가
+    docu_generation_instruction #추가
 )
 from app.tool.callbacks import after_agent_callback
 
@@ -146,4 +148,24 @@ def make_rag_answer_agent() -> LlmAgent:
         instruction= rag_answer_instruction,
         output_key= "answer",
         after_agent_callback= after_agent_callback,
+    )
+
+def make_docu_rewrite_agent() -> LlmAgent:
+    """문서 요약용 쿼리 재작성 에이전트를 만든다."""
+    return LlmAgent(
+        name="DocuRewriteAgent",
+        model=settings.model,
+        instruction=docu_rewrite_instruction,
+        output_key="docu_rewrite", # 다음 에이전트에게 넘겨줄 메모지 이름표
+    )
+
+def make_docu_generation_agent() -> LlmAgent:
+    """문서 요약 생성 에이전트를 만든다."""
+    return LlmAgent(
+        name="DocuGenerationAgent",
+        model=settings.model,
+        instruction=docu_generation_instruction,
+        tools=[filesystem_toolset],
+        output_key="summary",       # 🚨 핵심: callbacks.py의 요약 검증을 통과하기 위한 키워드
+        after_agent_callback=after_agent_callback, 
     )
