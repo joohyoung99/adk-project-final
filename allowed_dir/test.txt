@@ -1,0 +1,43 @@
+1주차: Google ADK & Vertex AI 플랫폼 심화 
+
+M1. Google ADK 에이전트 프레임워크 
+
+학습 시간: 이론 4h + 실습 6h 
+
+학습 목적 
+
+Google Agent Development Kit(ADK)의 핵심 개념을 학습하고, 선언적 에이전트 정의, FunctionTool 구현, 멀티 에이전트 패턴(SequentialAgent, ParallelAgent, LoopAgent)을 마스터합니다. LangGraph와의 아키텍처 비교를 통해 적합한 프레임워크 선택 기준을 확립합니다. 
+
+기술 심화 설명 
+
+1.1 ADK 핵심 아키텍처 
+
+Google ADK(Agent Development Kit)는 LLM 에이전트를 빠르게 구축하기 위한 Google의 공식 프레임워크입니다. 핵심 철학은 '선언적 에이전트 정의'로, Python 코드 몇 줄로 에이전트를 정의하고 즉시 실행할 수 있습니다. 
+
+ADK의 LlmAgent 클래스는 model(사용할 LLM), instruction(에이전트 역할/행동 지침), tools(사용 가능한 도구 목록)의 3가지 핵심 속성을 가집니다. 이 선언만으로 완전한 에이전트가 생성됩니다. 
+
+ADK는 LangGraph와 달리 그래프를 직접 구성하지 않고, sub_agents 파라미터로 에이전트 간 관계를 선언적으로 정의합니다. 이는 빠른 프로토타입에 유리하지만, LangGraph처럼 세밀한 흐름 제어는 제한적입니다. 
+
+1.2 ADK Tool 시스템 
+
+FunctionTool: Python 함수를 도구로 자동 변환합니다. 함수의 docstring이 도구 설명으로, 타입 힌트가 파라미터 스키마로 사용됩니다. 
+
+내장 도구: google_search(웹 검색), code_execution(코드 실행), load_web_page(웹 페이지 로드) 등이 내장되어 있습니다. 
+
+VertexAiSearchTool: Vertex AI Search 데이터스토어와 연동하여 엔터프라이즈 RAG를 구현합니다. 
+
+AgentTool: 다른 에이전트를 도구로 사용할 수 있어, 에이전트 간 호출이 가능합니다. 
+
+1.3 멀티 에이전트 오케스트레이션 
+
+SequentialAgent: 하위 에이전트를 순차적으로 실행합니다. 파이프라인 방식으로 리서치 -> 분석 -> 보고서 생성과 같은 워크플로우에 적합합니다. 
+
+ParallelAgent: 하위 에이전트를 동시에 실행합니다. 여러 소스에서 데이터를 수집하고 결과를 통합하는 시나리오에 적합합니다. 
+
+LoopAgent: 하위 에이전트를 반복 실행합니다. 품질 기준 충족까지 반복적으로 개선하는 Reflection 패턴에 적합합니다. 
+
+LlmAgent의 sub_agents: 루트 에이전트가 하위 에이전트로 자동 위임합니다. 대화 중 적절한 하위 에이전트를 LLM이 자동 선택합니다. 
+
+Hands-on Lab 
+
+실습 목적: Google ADK를 설치하고, 기본 에이전트부터 멀티 에이전트 파이프라인까지 단계적으로 구현합니다. adk web으로 테스트 UI를 실행하여 대화형 디버깅을 수행합니다. 
