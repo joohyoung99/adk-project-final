@@ -7,6 +7,7 @@ from google.genai import types
 
 from app.config.settings import settings
 from app.mcp.toolsets import filesystem_toolset
+
 from app.prompt.instructions import (
     rag_rewrite_instruction,
     merge_instruction,
@@ -18,7 +19,6 @@ from app.prompt.instructions import (
     docu_generation_instruction #추가
 )
 from app.tool.callbacks import after_agent_callback
-
 
 
 
@@ -61,7 +61,7 @@ def search_vertex_rag(query: str) -> str:
                             ],
                             rag_retrieval_config=types.RagRetrievalConfig(
                                 filter=types.RagRetrievalConfigFilter(
-                                    vector_distance_threshold=0.3,
+                                    vector_distance_threshold=0.6,
                                 ),
                                 ranking=types.RagRetrievalConfigRanking(
                                     rank_service=types.RagRetrievalConfigRankingRankService(
@@ -76,32 +76,11 @@ def search_vertex_rag(query: str) -> str:
             ],
         ),
     )
+
+
     if not response.candidates:
         return "검색 결과가 없습니다."
 
-    candidate = response.candidates[0]
-    gm = getattr(candidate, "grounding_metadata", None)
-
-    # print("=== response ===")
-    # print(response)
-
-    if gm:
-        print("=== grounding metadata ===")
-        print(gm)
-
-        # # SDK 버전에 따라 dict/object 형태가 다를 수 있어서 방어적으로 접근
-        # grounding_chunks = getattr(gm, "grounding_chunks", None)
-        # retrieved_context = getattr(gm, "retrieved_context", None)
-
-        # # if grounding_chunks:
-        # #     print("=== grounding chunks ===")
-        # #     print(grounding_chunks)
-
-        # if retrieved_context:
-        #     print("=== retrieved context ===")
-        #     print(retrieved_context)
-    else:
-        print("grounding_metadata 없음")
 
     return response.text or ""
 

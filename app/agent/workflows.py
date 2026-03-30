@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from google.adk.tools import AgentTool
 from google.adk.agents.parallel_agent import ParallelAgent
 from google.adk.agents.sequential_agent import SequentialAgent
 
@@ -18,7 +19,9 @@ def parallel_collect_agent() -> ParallelAgent:
     """웹검색과 rag 검색 병렬 수집한다."""
     return ParallelAgent(
     name="ParallelCollectAgent",
-    sub_agents=[],
+    sub_agents=[
+        #웹검색 파이프라인,
+        run_sequential_rag_pipeline()],
     description="웹검색과 RAG 검색 병렬 실행 ",
 )
 
@@ -62,3 +65,8 @@ def run_sequential_rag_pipeline() -> SequentialAgent:
         "RAG 엔진을 이용해 검색을 수행하고, 결과를 요약 응답한다."
     ),
 )
+
+
+docu_summary_tool = AgentTool(run_sequential_docu_summary_pipeline())
+tech_compare_tool = AgentTool(run_parallel_tech_compare_pipeline())
+rag_tool = AgentTool(run_sequential_rag_pipeline())
