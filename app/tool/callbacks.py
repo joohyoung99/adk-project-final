@@ -183,7 +183,7 @@ def after_agent_callback(callback_context: CallbackContext) -> types.Content | N
     if agent_name == "RagAnswerAgent" or _has_state_value(callback_context, "rag_result"):
         return _validate_rag_response(callback_context)
 
-    if agent_name == "SummaryOnlyAgent" or _has_state_value(callback_context, "summary"):
+    if agent_name == "DocuGenerationAgent" or _has_state_value(callback_context, "summary"):
         return _validate_summary_response(callback_context)
 
     if agent_name == "ParallelAnswerAgent" or _has_state_value(callback_context, "parallel_answer"):
