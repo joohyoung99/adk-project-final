@@ -5,14 +5,16 @@ from google.adk.agents.parallel_agent import ParallelAgent
 from google.adk.agents.sequential_agent import SequentialAgent
 
 from app.agent.sub_agents import (
-    make_merge_agent,
-    make_parallel_answer_agent,
     make_parallel_rewrite_agent,
-    make_save_to_file_agent,
-    make_summary_only_agent,
-    make_rag_search_agent,
+    make_parallel_rag_search_agent,
+    make_parallel_web_search_agent,
+    make_parallel_merge_agent,
+    make_parallel_answer_agent,
+    
     make_rag_rewrite_agent,
+    make_rag_search_agent,
     make_rag_answer_agent,
+
     make_docu_rewrite_agent, #추가
     make_docu_generation_agent #추가
 )
@@ -22,8 +24,8 @@ def parallel_collect_agent() -> ParallelAgent:
     return ParallelAgent(
     name="ParallelCollectAgent",
     sub_agents=[
-        #웹검색 파이프라인,
-        run_sequential_rag_pipeline()],
+        make_parallel_web_search_agent(),
+        make_parallel_rag_search_agent()],
     description="웹검색과 RAG 검색 병렬 실행 ",
 )
 
@@ -34,7 +36,7 @@ def run_parallel_tech_compare_pipeline() -> SequentialAgent:
     sub_agents=[
         make_parallel_rewrite_agent(),
         parallel_collect_agent(),
-        make_merge_agent(),
+        make_parallel_merge_agent(),
         make_parallel_answer_agent()
     ],
     description="병렬 수집 후 머지해서 사용자에게 요약 응답한다.",
@@ -48,7 +50,6 @@ def run_sequential_docu_summary_pipeline() -> SequentialAgent:
     sub_agents=[
        make_docu_rewrite_agent(),    # 쿼리 재작성 Agent 추가
        make_docu_generation_agent(),  # 답변 생성 Agent 추가 
-       # validation Agent 추가
     ],
     description="사용자의 문서를 받고 요약 응답한다.",
 )
