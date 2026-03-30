@@ -49,7 +49,7 @@ def search_vertex_rag(query: str) -> str:
                             ],
                             rag_retrieval_config=types.RagRetrievalConfig(
                                 filter=types.RagRetrievalConfigFilter(
-                                    vector_distance_threshold=0.6,
+                                    vector_distance_threshold=0.3,
                                 ),
                                 ranking=types.RagRetrievalConfigRanking(
                                     rank_service=types.RagRetrievalConfigRankingRankService(
@@ -69,6 +69,32 @@ def search_vertex_rag(query: str) -> str:
     if not response.candidates:
         return "검색 결과가 없습니다."
 
+    answer = response.text or "검색 결과가 없습니다."
 
-    return response.text or ""
+    candidate = response.candidates[0]
+    grounding_metadata = getattr(candidate, "grounding_metadata", None)
 
+    titles : list[str] = []
+    seen = set()
+
+    if grounding_metadata and getattr(grounding_metadata, "grounding_chunks", None):
+        for chunk in grounding_metadata.grounding_chunks:
+            retrieved = getattr(chunk, "retrieved_context", None)
+            if not retrieved:
+                continue
+            title = getattr(retrieved, "title", None)
+            uri = getattr(retrieved, "uri", None)
+
+            source_name = title or uri 
+            if source_name and source_name not in seen:
+                seen.add(source_name)
+                titles.append(source_name)
+
+    if titles:
+        source_text = "\n".join(f"- {title}" for title in titles)
+        return f"""{answer}
+
+참고 문서:
+{source_text}"""
+
+    return answer
