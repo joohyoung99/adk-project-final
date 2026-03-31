@@ -74,7 +74,7 @@ Google ADK로 만든 CLI 챗봇입니다.
 
 ## 설치
 
-의존성 정의는 [pyproject.toml](/home/pachu/works/adk-project-final/pyproject.toml)에 있습니다.
+의존성 정의는 [pyproject.toml](adk-project-final/pyproject.toml)에 있습니다.
 
 예시:
 
@@ -104,6 +104,44 @@ python3 main.py
 ## 에이전트 구조
 
 현재 구조는 `SupervisorAgent`가 사용자 질의를 보고 3개의 파이프라인 중 하나로 라우팅하는 형태입니다.
+
+```mermaid
+flowchart TD
+    U[User Query] --> S[SupervisorAgent<br/>LlmAgent]
+
+    S -->|문서 요약 요청| D1
+    S -->|사내 문서 검색 요청| R1
+    S -->|사내 문서 + 웹 비교 요청| P1
+
+    subgraph DOCU[run_sequential_docu_summary_pipeline]
+        D1[DocuRewriteAgent<br/>output: docu_rewrite]
+        D2[DocuGenerationAgent<br/>tool: filesystem_toolset<br/>output: summary]
+        D1 --> D2
+    end
+
+    subgraph RAG[run_sequential_rag_pipeline]
+        R1[RagRewriteAgent<br/>output: rag_rewrite]
+        R2[RAGSearchAgent<br/>tool: search_vertex_rag<br/>output: rag_result]
+        R3[RagAnswerAgent<br/>output: answer]
+        R1 --> R2 --> R3
+    end
+
+    subgraph TECH[run_parallel_tech_compare_pipeline]
+        P1[ParallelRewriteAgent<br/>output: parallel_rewrite]
+        P2[ParallelCollectAgent<br/>ParallelAgent]
+        P3[ParallelMergeAgent<br/>output: parallel_merged_result]
+        P4[ParallelAnswerAgent<br/>output: parallel_answer]
+        P1 --> P2 --> P3 --> P4
+
+        subgraph COLLECT[Parallel Collect]
+            W[ParallelWebSearchAgent<br/>tool: google_search<br/>output: parallel_web_result]
+            G[ParallelRAGSearchAgent<br/>tool: search_vertex_rag<br/>output: parallel_rag_result]
+        end
+
+        P2 --> W
+        P2 --> G
+    end
+```
 
 ### 1. Root Agent
 
@@ -178,7 +216,7 @@ python3 main.py
 
 ### 3. Sub Agent 상세
 
-[app/agent/sub_agents.py](/app/agent/sub_agents.py)
+[app/agent/sub_agents.py]
 
 현재 서브 에이전트는 아래처럼 나뉩니다.
 
@@ -238,7 +276,7 @@ python3 main.py
 
 ### 5. 콜백 역할
 
-[app/tool/callbacks.py](/app/tool/callbacks.py)
+[app/tool/callbacks.py]
 
 - `before_agent_callback`
   - 사용자 질문을 `user_query`로 state에 저장
@@ -303,19 +341,7 @@ npx -y @modelcontextprotocol/server-filesystem <allowed_dir>
 - Kafka 기반 실시간 알림 시스템 구현 사례
 - 캠페인 사례 보여줘
 - AI Agent 최신 기술이랑 사내 보유 기술사례 비교하고 추천해줘
+- 사내에서 진행했던 DidimRAG 프로젝트의 기술과 최신 RAG 기술을 비교 및 요약해줘.
 
-
-
-## 주요 파일
-
-- [main.py](/main.py)
-- [agent.py](/agent.py)
-- [app/config/settings.py](app/config/settings.py)
-- [app/services/chat_cli.py](app/services/chat_cli.py)
-- [app/agent/root.py](/app/agent/root.py)
-- [app/agent/workflows.py](app/agent/workflows.py)
-- [app/agent/sub_agents.py](app/agent/sub_agents.py)
-- [app/mcp/toolsets.py](app/mcp/toolsets.py)
-- [app/prompt/instructions.py](app/prompt/instructions.py)
 
 
