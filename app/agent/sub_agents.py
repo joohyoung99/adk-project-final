@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+#추가
+import google.genai.types as types
+from google.adk.tools import FunctionTool
+from google.adk.tools.tool_context import ToolContext
+##여기까지
+
+
 from google import genai
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.tools import google_search
@@ -23,10 +30,9 @@ from app.prompt.instructions import (
     docu_generation_instruction,
        
 )
+
 from app.tool.callbacks import after_agent_callback
 from app.util.tool import search_vertex_rag 
-
-
 
 
 
@@ -152,7 +158,7 @@ def make_docu_rewrite_agent() -> LlmAgent:
         name="DocuRewriteAgent",
         model=settings.model,
         instruction=docu_rewrite_instruction,
-        output_key="docu_rewrite", # 다음 에이전트에게 넘겨줄 메모지 이름표
+        output_key="docu_rewrite", 
     )
 
 def make_docu_generation_agent() -> LlmAgent:
@@ -161,7 +167,57 @@ def make_docu_generation_agent() -> LlmAgent:
         name="DocuGenerationAgent",
         model=settings.model,
         instruction=docu_generation_instruction,
-        tools=[filesystem_toolset],
-        output_key="summary",       # 🚨 핵심: callbacks.py의 요약 검증을 통과하기 위한 키워드
+        tools=[artifact_read_tool],
+        output_key="summary",    
         after_agent_callback=after_agent_callback, 
     )
+
+##추가
+
+async def read_uploaded_artifact(tool_context: ToolContext):
+    """
+    사용자가 업로드한 아티팩트(파일)를 조회하고, 모델이 읽을 수 있는 형태로 반환한다.
+    PDF 등은 모델이 직접 읽을 수 있도록 멀티모달 객체(Part)로 전달한다.
+    """
+    try:
+        available_files = await tool_context.list_artifacts()
+        if not available_files:
+            await asyncio.sleep(1.5) 
+            available_files = await tool_context.list_artifacts()
+
+        if not available_files:
+            return ["업로드된 파일이 없습니다."]
+
+        processed_results = []
+        for filename in available_files:
+            artifact = await tool_context.load_artifact(filename=filename)
+            
+            if not artifact or not artifact.inline_data:
+                continue
+
+            file_bytes = artifact.inline_data.data
+            mime_type = artifact.inline_data.mime_type
+
+            # 3. PDF 등은 텍스트 파싱 없이 원본(Part) 그대로 LLM에게 전달 (멀티모달 네이티브)
+            if mime_type == "application/pdf" or mime_type.startswith("image/"):
+                processed_results.append(
+                    types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+                )
+            else:
+                # 텍스트 기반 파일(txt, md, html 등)은 디코딩하여 텍스트로 전달
+                try:
+                    text_content = file_bytes.decode('utf-8')
+                    processed_results.append(f"[{filename} 내용]\n{text_content}")
+                except UnicodeDecodeError:
+                    # 디코딩 실패 시 안전하게 Part 객체로 묶어서 전달
+                    processed_results.append(
+                        types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+                    )
+
+        return processed_results
+
+    except Exception as e:
+        return [f"파일을 읽는 중 오류가 발생했습니다: {str(e)}"]
+
+# 에이전트에게 쥐어줄 도구 세팅
+artifact_read_tool = FunctionTool(func=read_uploaded_artifact)
