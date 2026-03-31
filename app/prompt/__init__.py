@@ -14,6 +14,10 @@ from app.prompt.instructions import (
     docu_rewrite_instruction,
     docu_generation_instruction,
 
+    github_rewrite_instruction,
+    github_search_instruction,
+    github_answer_instruction,
+
 )
 
 __all__ = [
@@ -32,5 +36,9 @@ __all__ = [
     
     "docu_rewrite_instruction",
     "docu_generation_instruction",
+
+    "github_rewrite_instruction",
+    "github_search_instruction",
+    "github_answer_instruction",
 
 ]
