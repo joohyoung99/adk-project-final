@@ -14,7 +14,7 @@ from google.adk.tools import google_search
 from google.genai import types
 
 from app.config.settings import settings
-from app.mcp.toolsets import github_mcp_toolset
+from app.mcp.toolsets import filesystem_toolset, github_mcp_toolset
 
 from app.prompt.instructions import (
     rag_rewrite_instruction,
@@ -35,7 +35,6 @@ from app.prompt.instructions import (
     github_answer_instruction 
 )
 
-from app.tool.callbacks import after_agent_callback
 from app.tool.callbacks import after_agent_callback, before_agent_callback, after_tool_callback, before_model_callback
 from app.util.tool import search_vertex_rag 
 
@@ -102,6 +101,7 @@ def make_parallel_rewrite_agent() -> LlmAgent:
         model= settings.model,
         instruction= parallel_rewrite_instruction,
         output_key= "parallel_rewrite",
+        before_model_callback=before_model_callback,
     )
 
 
@@ -113,6 +113,7 @@ def make_parallel_web_search_agent() -> LlmAgent:
         instruction = parallel_web_search_instruction,
         tools= [google_search],
         output_key= "parallel_web_result",
+        after_tool_callback= after_tool_callback,
     )
 
 
@@ -125,6 +126,7 @@ def make_parallel_rag_search_agent() -> LlmAgent:
         instruction= parallel_rag_search_instruction,
         tools= [search_vertex_rag],
         output_key= "parallel_rag_result",
+        after_tool_callback= after_tool_callback,
     )
 
 def make_parallel_merge_agent() -> LlmAgent:
@@ -134,6 +136,7 @@ def make_parallel_merge_agent() -> LlmAgent:
         model= settings.model,
         instruction= parallel_merge_instruction,
         output_key= "parallel_merged_result",
+        before_model_callback=before_model_callback,
     )
 
 
@@ -182,6 +185,8 @@ def make_rag_search_agent() -> LlmAgent:
         instruction= rag_search_instruction,
         tools= [search_vertex_rag],
         output_key= "rag_result",
+        before_model_callback=before_model_callback,
+        after_tool_callback= after_tool_callback,
     )
 
 
@@ -191,6 +196,7 @@ def make_rag_rewrite_agent() -> LlmAgent:
         model= settings.model,
         instruction= rag_rewrite_instruction,
         output_key= "rag_rewrite",
+        before_model_callback=before_model_callback,
     )
 
 def make_rag_answer_agent() -> LlmAgent:
@@ -199,6 +205,7 @@ def make_rag_answer_agent() -> LlmAgent:
         model= settings.model,
         instruction= rag_answer_instruction,
         output_key= "answer",
+        before_model_callback=before_model_callback,
         after_agent_callback= after_agent_callback,
     )
 
@@ -213,7 +220,8 @@ def make_docu_rewrite_agent() -> LlmAgent:
         name="DocuRewriteAgent",
         model=settings.model,
         instruction=docu_rewrite_instruction,
-        output_key="docu_rewrite", 
+        output_key="docu_rewrite",
+        before_model_callback=before_model_callback, 
     )
 
 def make_docu_generation_agent() -> LlmAgent:
@@ -223,7 +231,9 @@ def make_docu_generation_agent() -> LlmAgent:
         model=settings.model,
         instruction=docu_generation_instruction,
         tools=[artifact_read_tool],
-        output_key="summary",    
+        output_key="summary",  
+        before_model_callback=before_model_callback,
+        after_tool_callback=after_tool_callback,  
         after_agent_callback=after_agent_callback, 
     )
 
