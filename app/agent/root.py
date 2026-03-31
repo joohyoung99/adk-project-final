@@ -3,10 +3,10 @@ from __future__ import annotations
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.tools import AgentTool
 
-from app.agent.workflows import docu_summary_tool, tech_compare_tool, rag_tool
+from app.agent.workflows import docu_summary_tool, tech_compare_tool, rag_tool, github_search_tool
 from app.config.settings import settings
 from app.prompt.instructions import supervisor_instruction
-from app.tool.callbacks import before_agent_callback
+from app.tool.callbacks import before_agent_callback , before_model_callback
 
 
 supervisor_agent = LlmAgent(
@@ -16,9 +16,11 @@ supervisor_agent = LlmAgent(
     tools=[
         docu_summary_tool,
         tech_compare_tool,
-        rag_tool
+        rag_tool,
+        github_search_tool
     ],
-    before_agent_callback=before_agent_callback
+    before_agent_callback=before_agent_callback,
+    before_model_callback=before_model_callback
 )
 
 root_agent = supervisor_agent

@@ -38,3 +38,18 @@ filesystem_toolset = MCPToolset(
     ],
 )
 
+
+github_mcp_toolset = MCPToolset(
+    connection_params=StdioConnectionParams(
+        server_params=StdioServerParameters(
+            command=settings.github_mcp_server_path,
+            args=["stdio"],
+            env={
+                "GITHUB_PERSONAL_ACCESS_TOKEN": settings.github_personal_access_token,
+                "GITHUB_TOOLSETS": "repos,issues,pull_requests,users",
+                "GITHUB_READ_ONLY": "1",
+            },
+        ),
+        timeout=20.0,
+    ),
+)

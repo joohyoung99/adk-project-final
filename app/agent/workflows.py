@@ -16,7 +16,12 @@ from app.agent.sub_agents import (
     make_rag_answer_agent,
 
     make_docu_rewrite_agent, #추가
-    make_docu_generation_agent #추가
+    make_docu_generation_agent, #추가
+
+
+    make_github_rewrite_agent,
+    make_github_search_agent,
+    make_github_answer_agent,
 )
 
 def parallel_collect_agent() -> ParallelAgent:
@@ -68,7 +73,22 @@ def run_sequential_rag_pipeline() -> SequentialAgent:
     ),
 )
 
+def run_github_search_pipeline() -> SequentialAgent:
+    """GitHub 검색 중심의 순차 파이프라인을 구성한다."""
+    return SequentialAgent(
+    name="run_github_search_pipeline",
+    sub_agents=[
+        make_github_rewrite_agent(),
+        make_github_search_agent(),
+        make_github_answer_agent(),
+    ],
+    description=(
+        "GitHub MCP 서버를 이용해 검색을 수행하고, 결과를 요약 응답한다."
+    ),
+)
+
 
 docu_summary_tool = AgentTool(run_sequential_docu_summary_pipeline())
 tech_compare_tool = AgentTool(run_parallel_tech_compare_pipeline())
 rag_tool = AgentTool(run_sequential_rag_pipeline())
+github_search_tool = AgentTool(run_github_search_pipeline())
