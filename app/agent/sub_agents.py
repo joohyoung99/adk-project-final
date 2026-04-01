@@ -94,31 +94,6 @@ def make_parallel_answer_agent() -> LlmAgent:
 
 
 
-
-
-
-# def make_save_to_file_agent() -> LlmAgent:
-#     """filesystem MCP로 결과를 저장하는 에이전트를 만든다."""
-#     return LlmAgent(
-#         name= "SaveToFileAgent",
-#         model= settings.model,
-#         instruction= save_to_file_instruction,
-#         tools= [filesystem_toolset],
-#         output_key= "save_result",
-  
-#     )
-
-
-# def make_summary_only_agent() -> LlmAgent:
-#     """최종 응답을 간단히 요약하는 에이전트를 만든다."""
-#     return LlmAgent(
-#         name= "SummaryOnlyAgent",
-#         model= settings.model,
-#         instruction= summary_only_instruction,
-    
-#     )
-
-
 def make_rag_search_agent() -> LlmAgent:
     """Vertex RAG 검색 툴을 사용하는 에이전트를 만든다."""
   
