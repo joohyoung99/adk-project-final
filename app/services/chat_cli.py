@@ -10,6 +10,7 @@ from google.genai import types
 
 from agent import root_agent
 from app.config.settings import settings
+from google.adk.artifacts import InMemoryArtifactService
 
 
 
@@ -60,10 +61,13 @@ async def run_chat_cli() -> None:
     session_service = VertexAiSessionService(project=settings.google_cloud_project, 
                                              location=settings.google_cloud_location,
                                              ) 
+    artifact_service = InMemoryArtifactService()
+
     runner = Runner(
         app_name=settings.google_agent_engine_name,
         agent=root_agent,
         session_service=session_service,
+        artifact_service=artifact_service,
     )
     session = await session_service.create_session(
         app_name=settings.google_agent_engine,

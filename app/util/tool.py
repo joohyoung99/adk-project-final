@@ -5,7 +5,10 @@ from google.genai import types
 
 from app.config.settings import settings
 
-
+import asyncio
+from google.adk.tools import FunctionTool
+from google.adk.tools.tool_context import ToolContext
+from google.genai import types
 
 
 
@@ -98,3 +101,37 @@ def search_vertex_rag(query: str) -> str:
 {source_text}"""
 
     return answer
+
+
+async def read_uploaded_artifact(tool_context: ToolContext):
+    """사용자가 업로드한 아티팩트(파일)를 조회하여 반환한다."""
+    try:
+        available_files = await tool_context.list_artifacts()
+
+        if not available_files:
+            return ["업로드된 파일이 없습니다."]
+
+        processed_results = []
+        for filename in available_files:
+            artifact = await tool_context.load_artifact(filename=filename)
+            if not artifact or not artifact.inline_data:
+                continue
+
+            file_bytes = artifact.inline_data.data
+            mime_type = artifact.inline_data.mime_type
+
+            # PDF나 이미지는 멀티모달 Part로, 텍스트는 문자열로 처리
+            if mime_type == "application/pdf" or mime_type.startswith("image/"):
+                processed_results.append(types.Part.from_bytes(data=file_bytes, mime_type=mime_type))
+            else:
+                try:
+                    text_content = file_bytes.decode('utf-8')
+                    processed_results.append(f"[{filename} 내용]\n{text_content}")
+                except UnicodeDecodeError:
+                    processed_results.append(types.Part.from_bytes(data=file_bytes, mime_type=mime_type))
+        return processed_results
+    except Exception as e:
+        return [f"파일 읽기 오류: {str(e)}"]
+
+# 도구 객체 선언
+artifact_read_tool = FunctionTool(func=read_uploaded_artifact)
