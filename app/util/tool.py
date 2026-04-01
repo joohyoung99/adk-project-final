@@ -1,14 +1,23 @@
 from __future__ import annotations
 
+import re
+from typing import Any
 from google import genai
 from google.genai import types
+from google.api_core.client_options import ClientOptions
+from google.cloud import discoveryengine_v1 as discoveryengine
 
 from app.config.settings import settings
 
 import asyncio
 from google.adk.tools import FunctionTool
 from google.adk.tools.tool_context import ToolContext
-from google.genai import types
+
+
+
+
+
+
 
 
 
@@ -135,3 +144,143 @@ async def read_uploaded_artifact(tool_context: ToolContext):
 
 # 도구 객체 선언
 artifact_read_tool = FunctionTool(func=read_uploaded_artifact)
+
+
+def _sanitize_datastore_filter(filter_expr: str) -> str:
+    """Discovery Engine에서 지원하지 않는 tags 조건을 제거한다."""
+
+    if not filter_expr.strip():
+        return ""
+
+    clauses = [clause.strip() for clause in re.split(r"\s+AND\s+", filter_expr) if clause.strip()]
+    sanitized = [clause for clause in clauses if not clause.lower().startswith("tags:")]
+    return " AND ".join(sanitized)
+
+
+
+
+def search_datastore(
+    query: str,
+    filter_expr: str = "",
+    page_size: int = 5,
+    return_summary: bool = True,
+) -> dict[str, Any]:
+    """Vertex AI Search(Data Store) 문서 검색"""
+
+    if not query.strip():
+        return {"error": "검색어가 비어 있습니다."}
+
+    project_id = settings.google_cloud_project
+    location = settings.discovery_engine_location
+    engine_id = settings.discovery_engine_engine_id
+
+    if not project_id or not location or not engine_id:
+        return {"error": "Discovery Engine 환경 변수가 설정되지 않았습니다."}
+
+    sanitized_filter_expr = _sanitize_datastore_filter(filter_expr)
+
+    client_options = (
+        ClientOptions(api_endpoint=f"{location}-discoveryengine.googleapis.com")
+        if location != "global"
+        else None
+    )
+    client = discoveryengine.SearchServiceClient(client_options=client_options)
+
+    serving_config = (
+        f"projects/{project_id}/locations/{location}/collections/default_collection/"
+        f"engines/{engine_id}/servingConfigs/default_config"
+    )
+
+    content_search_spec = discoveryengine.SearchRequest.ContentSearchSpec(
+        snippet_spec=discoveryengine.SearchRequest.ContentSearchSpec.SnippetSpec(
+            return_snippet=True
+        ),
+        summary_spec=(
+            discoveryengine.SearchRequest.ContentSearchSpec.SummarySpec(
+                summary_result_count=min(page_size, 5),
+                include_citations=True,
+                ignore_adversarial_query=True,
+                ignore_non_summary_seeking_query=True,
+                model_spec=discoveryengine.SearchRequest.ContentSearchSpec.SummarySpec.ModelSpec(
+                    version="stable"
+                ),
+            )
+            if return_summary
+            else None
+        ),
+    )
+
+    request = discoveryengine.SearchRequest(
+        serving_config=serving_config,
+        query=query,
+        filter=sanitized_filter_expr,
+        page_size=page_size,
+        content_search_spec=content_search_spec,
+        query_expansion_spec=discoveryengine.SearchRequest.QueryExpansionSpec(
+            condition=discoveryengine.SearchRequest.QueryExpansionSpec.Condition.AUTO
+        ),
+        spell_correction_spec=discoveryengine.SearchRequest.SpellCorrectionSpec(
+            mode=discoveryengine.SearchRequest.SpellCorrectionSpec.Mode.AUTO
+        ),
+    )
+
+    try:
+        pager = client.search(request=request)
+    except Exception as e:
+        return {"error": f"Discovery Engine 검색 실패: {e}"}
+
+    raw_response = getattr(pager, "_response", None)
+    summary_text = ""
+    if raw_response and getattr(raw_response, "summary", None):
+        summary_text = getattr(raw_response.summary, "summary_text", "") or ""
+
+    results: list[dict[str, Any]] = []
+
+    for item in pager:
+        document = getattr(item, "document", None)
+        if not document:
+            continue
+
+        struct_data = {}
+        if getattr(document, "struct_data", None):
+            try:
+                struct_data = dict(document.struct_data)
+            except Exception:
+                struct_data = {}
+
+        snippets: list[str] = []
+        derived_struct_data = getattr(document, "derived_struct_data", None)
+        snippet_items = (
+            derived_struct_data.get("snippets", [])
+            if isinstance(derived_struct_data, dict)
+            else getattr(derived_struct_data, "snippets", None) or []
+        )
+
+        for snip in snippet_items:
+            snippet_text = snip.get("snippet", "") if isinstance(snip, dict) else getattr(snip, "snippet", "")
+            if snippet_text:
+                snippets.append(str(snippet_text).strip())
+
+        results.append(
+            {
+                "id": getattr(document, "id", "") or "",
+                "title": getattr(document, "title", "") or "",
+                "uri": getattr(document, "uri", "") or "",
+                "snippet": "\n".join(snippets),
+                "doc_type": struct_data.get("doc_type", ""),
+                "doc_title": struct_data.get("doc_title", ""),
+                "doc_description": struct_data.get("doc_description", ""),
+                "doc_category": struct_data.get("doc_category", ""),
+                "struct_data": struct_data,
+            }
+        )
+
+    return {
+        "query": query,
+        "filter": sanitized_filter_expr,
+        "total_size": len(results),
+        "summary": summary_text,
+        "results": results,
+    }
+
+rag_search_tool = FunctionTool(search_datastore)

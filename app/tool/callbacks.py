@@ -121,7 +121,7 @@ SUMMARY_SECTION_KEYWORDS = ("핵심", "요약", "추천", "다음 액션")
 TECH_COMPARE_KEYWORDS = ("비교", "장점", "단점", "추천", "근거")
 SPECULATION_KEYWORDS = ("추정", "아마", "가능성이", "예상")
 
-GROUNDING_NOTICE = "※ 위 답변은 Vertex RAG corpus 검색 결과를 기반으로 작성되었습니다."
+GROUNDING_NOTICE = "※ 위 답변은 Vertex AI Search(Data Store) 검색 결과를 기반으로 작성되었습니다."
 GITHUB_NOTICE = "※ 위 답변은 GitHub 조회 결과를 기준으로 정리되었습니다."
 
 FULL_SHA_PATTERN = re.compile(r"\b[0-9a-f]{40}\b", re.IGNORECASE)
@@ -215,6 +215,14 @@ def _build_llm_response(text: str) -> LlmResponse:
 
 def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
     return any(keyword in text for keyword in keywords)
+
+
+def _parse_prefixed_value(text: str, prefix: str) -> str:
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if line.lower().startswith(prefix.lower()):
+            return line[len(prefix):].strip()
+    return ""
 
 
 def _extract_user_text(callback_context: CallbackContext) -> str:
@@ -507,6 +515,20 @@ def _validate_rag_response(callback_context: CallbackContext) -> types.Content |
     return _build_model_content(answer)
 
 
+def _normalize_rag_rewrite_state(callback_context: CallbackContext) -> types.Content | None:
+    rag_rewrite_raw = _state_get(callback_context, "rag_rewrite")
+    if not rag_rewrite_raw:
+        return None
+
+    parsed_query = _parse_prefixed_value(rag_rewrite_raw, "query:")
+    parsed_filter = _parse_prefixed_value(rag_rewrite_raw, "filter_expr:")
+
+    normalized_query = parsed_query or rag_rewrite_raw.strip()
+    _state_set(callback_context, "rag_rewrite", normalized_query)
+    _state_set(callback_context, "rag_filter_expr", parsed_filter)
+    return None
+
+
 def _validate_summary_response(callback_context: CallbackContext) -> types.Content | None:
     summary = _state_get(callback_context, "summary")
 
@@ -615,6 +637,9 @@ def _validate_github_response(callback_context: CallbackContext) -> types.Conten
 
 def after_agent_callback(callback_context: CallbackContext) -> types.Content | None:
     agent_name = getattr(callback_context, "agent_name", "")
+
+    if agent_name == "RagRewriteAgent":
+        return _normalize_rag_rewrite_state(callback_context)
 
     if agent_name == "RagAnswerAgent":
         return _validate_rag_response(callback_context)
