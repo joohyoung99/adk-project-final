@@ -1,13 +1,5 @@
 from __future__ import annotations
 
-#추가
-import asyncio
-import google.genai.types as types
-from google.adk.tools import FunctionTool
-from google.adk.tools.tool_context import ToolContext
-##여기까지
-
-
 from google import genai
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.tools import google_search
@@ -15,6 +7,8 @@ from google.genai import types
 
 from app.config.settings import settings
 from app.mcp.toolsets import filesystem_toolset, github_mcp_toolset
+
+from app.util.tool import artifact_read_tool
 
 from app.prompt.instructions import (
     rag_rewrite_instruction,
@@ -37,57 +31,6 @@ from app.prompt.instructions import (
 
 from app.tool.callbacks import after_agent_callback, before_agent_callback, after_tool_callback, before_model_callback
 from app.util.tool import search_vertex_rag 
-
-##추가
-
-async def read_uploaded_artifact(tool_context: ToolContext):
-    """
-    사용자가 업로드한 아티팩트(파일)를 조회하고, 모델이 읽을 수 있는 형태로 반환한다.
-    PDF 등은 모델이 직접 읽을 수 있도록 멀티모달 객체(Part)로 전달한다.
-    """
-    try:
-        available_files = await tool_context.list_artifacts()
-        if not available_files:
-            await asyncio.sleep(1.5) 
-            available_files = await tool_context.list_artifacts()
-
-        if not available_files:
-            return ["업로드된 파일이 없습니다."]
-
-        processed_results = []
-        for filename in available_files:
-            artifact = await tool_context.load_artifact(filename=filename)
-            
-            if not artifact or not artifact.inline_data:
-                continue
-
-            file_bytes = artifact.inline_data.data
-            mime_type = artifact.inline_data.mime_type
-
-            
-            if mime_type == "application/pdf" or mime_type.startswith("image/"):
-                processed_results.append(
-                    types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
-                )
-            else:
-              
-                try:
-                    text_content = file_bytes.decode('utf-8')
-                    processed_results.append(f"[{filename} 내용]\n{text_content}")
-                except UnicodeDecodeError:
-                  
-                    processed_results.append(
-                        types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
-                    )
-
-        return processed_results
-
-    except Exception as e:
-        return [f"파일을 읽는 중 오류가 발생했습니다: {str(e)}"]
-
-
-artifact_read_tool = FunctionTool(func=read_uploaded_artifact)
-
 
 
 #########################
