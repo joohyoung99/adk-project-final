@@ -21,7 +21,7 @@ from app.prompt.instructions import (
     parallel_merge_instruction,
     parallel_answer_instruction,
     
-    docu_rewrite_instruction,
+    query_rewrite_instruction,
     docu_generation_instruction, 
 
     github_rewrite_instruction,
@@ -157,13 +157,13 @@ def make_rag_answer_agent() -> LlmAgent:
 
 
 
-def make_docu_rewrite_agent() -> LlmAgent:
+def make_query_rewrite_agent() -> LlmAgent:
     """문서 요약용 쿼리 재작성 에이전트를 만든다."""
     return LlmAgent(
-        name="DocuRewriteAgent",
+        name="QueryRewriteAgent",
         model=settings.model,
-        instruction=docu_rewrite_instruction,
-        output_key="docu_rewrite",
+        instruction=query_rewrite_instruction,
+        output_key="query_rewrite",
         before_model_callback=before_model_callback, 
     )
 
