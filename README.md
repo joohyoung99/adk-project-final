@@ -2,7 +2,7 @@
 
 Google ADK로 만든 CLI 챗봇입니다.
 
-- `filesystem MCP`
+- `Github MCP`
 - `VertexAI session`
 - `Vertex RAG 검색`
 
@@ -103,7 +103,7 @@ python3 main.py
 
 ## 에이전트 구조
 
-현재 구조는 `SupervisorAgent`가 사용자 질의를 보고 3개의 파이프라인 중 하나로 라우팅하는 형태입니다.
+현재 구조는 `SupervisorAgent`가 사용자 질의를 보고 4개의 워크플로우 툴 중 하나를 선택해 실행하는 형태입니다.
 
 ```mermaid
 flowchart TD
@@ -112,6 +112,7 @@ flowchart TD
     S -->|문서 요약 요청| D1
     S -->|사내 문서 검색 요청| R1
     S -->|사내 문서 + 웹 비교 요청| P1
+    S -->|GitHub 코드/저장소 검색 요청| G1
 
     subgraph DOCU[run_sequential_docu_summary_pipeline]
         D1[DocuRewriteAgent<br/>output: docu_rewrite]
@@ -141,18 +142,31 @@ flowchart TD
         P2 --> W
         P2 --> G
     end
+
+    subgraph GITHUB[run_github_search_pipeline]
+        G1[GitHubRewriteAgent<br/>output: github_rewrite]
+        G2[GitHubSearchAgent<br/>tool: github_mcp_toolset<br/>output: github_search_result]
+        G3[GitHubAnswerAgent<br/>output: github_answer]
+        G1 --> G2 --> G3
+    end
 ```
 
 ### 1. Root Agent
 
-[app/agent/root.py](/app/agent/root.py)
+[app/agent/root.py]
 
 - 루트 에이전트는 `SupervisorAgent` 하나입니다.
 - 타입은 `LlmAgent`이며 모델은 `settings.model`을 사용합니다.
-- `supervisor_instruction`을 통해 반드시 아래 3개 파이프라인 중 하나만 선택하도록 강제합니다.
+- `supervisor_instruction`을 통해 아래 4개 워크플로우 툴 중 하나를 선택하도록 유도합니다.
   - `run_sequential_docu_summary_pipeline`
   - `run_parallel_tech_compare_pipeline`
   - `run_sequential_rag_pipeline`
+  - `run_github_search_pipeline`
+- 실제 `tools` 등록은 다음 4개 `AgentTool`입니다.
+  - `docu_summary_tool`
+  - `tech_compare_tool`
+  - `rag_tool`
+  - `github_search_tool`
 - `before_agent_callback`이 연결되어 있어, 사내 문서/프로젝트 관련 질문이 아니면 실행 전에 차단합니다.
 
 라우팅 기준은 다음과 같습니다.
@@ -160,10 +174,11 @@ flowchart TD
 - 첨부 파일이나 긴 문서 본문 요약 요청: `run_sequential_docu_summary_pipeline`
 - 사내 문서/내부 기술 자료 검색 요청: `run_sequential_rag_pipeline`
 - 사내 문서와 외부 웹 최신 정보의 비교/보완 요청: `run_parallel_tech_compare_pipeline`
+- GitHub 저장소/코드베이스 탐색 요청: `run_github_search_pipeline`
 
 ### 2. Workflow 계층
 
-[app/agent/workflows.py](/app/agent/workflows.py)
+[app/agent/workflows.py]
 
 각 파이프라인은 ADK의 `SequentialAgent` 또는 `ParallelAgent` 조합으로 구성됩니다.
 
@@ -213,6 +228,20 @@ flowchart TD
 - 웹 검색과 Vertex RAG 검색을 병렬 수집
 - 두 결과를 병합
 - 내부 문서 근거와 외부 최신 정보를 함께 반영한 답변 생성
+
+#### `run_github_search_pipeline()`
+
+- 타입: `SequentialAgent`
+- 실행 순서:
+  1. `GitHubRewriteAgent`
+  2. `GitHubSearchAgent`
+  3. `GitHubAnswerAgent`
+
+역할:
+
+- 사용자 질문을 GitHub 검색용 질의로 재작성
+- `github_mcp_toolset`으로 저장소/코드 검색 수행
+- 검색 결과만 바탕으로 최종 답변 생성
 
 ### 3. Sub Agent 상세
 
@@ -266,6 +295,20 @@ flowchart TD
   - 병합 결과를 기반으로 최종 비교 답변 생성
   - `after_agent_callback`으로 비교/추천 형식 검증
 
+#### GitHub 검색 파이프라인
+
+- `GitHubRewriteAgent`
+  - 출력 키: `github_rewrite`
+  - GitHub 검색에 맞는 질의로 재작성
+- `GitHubSearchAgent`
+  - 도구: `github_mcp_toolset`
+  - 출력 키: `github_search_result`
+  - GitHub MCP 서버를 통해 저장소/코드 검색 수행
+- `GitHubAnswerAgent`
+  - 출력 키: `github_answer`
+  - 검색 결과 기반 최종 답변 생성
+  - `after_agent_callback`으로 응답 형식 검증
+
 ### 4. 상태 전달 방식
 
 파이프라인 내부 에이전트들은 ADK state에 저장되는 `output_key`를 통해 결과를 다음 단계로 넘깁니다.
@@ -273,6 +316,7 @@ flowchart TD
 - 문서 요약: `docu_rewrite` -> `summary`
 - RAG: `rag_rewrite` -> `rag_result` -> `answer`
 - 병렬 비교: `parallel_rewrite` -> `parallel_web_result` / `parallel_rag_result` -> `parallel_merged_result` -> `parallel_answer`
+- GitHub 검색: `github_rewrite` -> `github_search_result` -> `github_answer`
 
 ### 5. 콜백 역할
 
@@ -285,6 +329,7 @@ flowchart TD
   - `RagAnswerAgent`: 추측성 표현 여부, grounding 문구, 검색 결과 존재 여부 검증
   - `DocuGenerationAgent`: 요약 결과 최소 구조 검증
   - `ParallelAnswerAgent`: 비교/추천 형식 검증
+  - `GitHubAnswerAgent`: 검색 결과 기반 응답 형식 검증
 
 
 
@@ -342,6 +387,5 @@ npx -y @modelcontextprotocol/server-filesystem <allowed_dir>
 - 캠페인 사례 보여줘
 - AI Agent 최신 기술이랑 사내 보유 기술사례 비교하고 추천해줘
 - 사내에서 진행했던 DidimRAG 프로젝트의 기술과 최신 RAG 기술을 비교 및 요약해줘.
-
 
 

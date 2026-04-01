@@ -12,6 +12,7 @@ supervisor_instruction = """
 1. run_sequential_docu_summary_pipeline
 2. run_parallel_tech_compare_pipeline
 3. run_sequential_rag_pipeline
+4. run_sequential_github_pipeline
 
 라우팅 기준:
 - 사용자가 첨부 파일, 긴 본문, 보고서, 문서 내용을 직접 요약/정리해달라고 하면
@@ -20,6 +21,8 @@ supervisor_instruction = """
   -> run_sequential_rag_pipeline
 - 사용자가 사내 문서 결과와 외부 웹 최신 정보의 비교, 보완, 통합, 최신 동향 확인을 요구하면
   -> run_parallel_tech_compare_pipeline
+- 사용자가 GitHub 저장소, 코드, 이슈, PR, 커밋 등에서 정보를 찾으려 하면
+  -> run_sequential_github_pipeline
 
 추가 규칙:
 - "첨부 파일" 또는 실제 문서 본문이 주어진 경우 요약 파이프라인을 우선한다.
