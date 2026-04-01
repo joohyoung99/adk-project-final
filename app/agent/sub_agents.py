@@ -8,7 +8,7 @@ from google.genai import types
 from app.config.settings import settings
 from app.mcp.toolsets import filesystem_toolset, github_mcp_toolset
 
-from app.util.tool import artifact_read_tool
+from app.util.tool import artifact_read_tool , rag_search_tool
 
 from app.prompt.instructions import (
     rag_rewrite_instruction,
@@ -126,7 +126,7 @@ def make_rag_search_agent() -> LlmAgent:
         name= "RAGSearchAgent",
         model= settings.model,
         instruction= rag_search_instruction,
-        tools= [search_vertex_rag],
+        tools= [rag_search_tool],
         output_key= "rag_result",
         before_model_callback=before_model_callback,
         after_tool_callback= after_tool_callback,
@@ -140,6 +140,7 @@ def make_rag_rewrite_agent() -> LlmAgent:
         instruction= rag_rewrite_instruction,
         output_key= "rag_rewrite",
         before_model_callback=before_model_callback,
+        after_agent_callback= after_agent_callback,
     )
 
 def make_rag_answer_agent() -> LlmAgent:
