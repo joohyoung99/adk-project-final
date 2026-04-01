@@ -1,391 +1,280 @@
-# ADK 사내 문서 RAG 검색 시스템 (GCP + Vertex AI + ADK)
+# ADK Internal Knowledge Agent
 
-Google ADK로 만든 CLI 챗봇입니다.
+Google ADK 기반 멀티에이전트 CLI 프로젝트다. 사용자의 질문을 보고 적절한 파이프라인으로 라우팅한 뒤, 사내 문서 검색, 웹 검색 비교, GitHub 검색, 업로드 문서 요약을 수행한다.
 
-- `Github MCP`
-- `VertexAI session`
-- `Vertex RAG 검색`
+## 핵심 기능
 
+- Vertex AI Search(Data Store)를 이용한 사내 문서 검색
+- Vertex RAG corpus와 Google Search를 병렬로 호출하는 기술 비교 응답
+- GitHub MCP 서버를 통한 저장소, 이슈, PR, 사용자 정보 검색
+- 업로드된 아티팩트를 읽어 문서 요약 생성
+- SupervisorAgent 기반 요청 분류와 순차/병렬 워크플로우 실행
+- Vertex AI session service 기반 대화 세션 유지
 
+## 동작 구조
 
-## 주요 기능
+루트 에이전트는 `SupervisorAgent`이며, 사용자 요청을 아래 네 개 파이프라인 중 하나로 보낸다.
 
-- Vertex AI 기반 세션 생성
-- Gemini 모델을 사용하는 ADK `LlmAgent`
-- Vertex RAG Corpus 검색
-- MCP Filesystem 서버 연결 준비
-- 툴 호출 로그 출력
+1. `run_sequential_docu_summary_pipeline`
+   첨부 파일이나 긴 본문을 요약할 때 사용
+2. `run_sequential_rag_pipeline`
+   사내 문서나 내부 기술 자료를 찾을 때 사용
+3. `run_parallel_tech_compare_pipeline`
+   내부 문서와 외부 웹 정보를 함께 비교할 때 사용
+4. `run_github_search_pipeline`
+   GitHub 저장소, 코드, 이슈, PR, 커밋 관련 질문일 때 사용
 
-## 데이터 구조
+흐름 요약:
 
-기존 README에 있던 예시 데이터 구조는 아래와 같습니다.
-
-```json
-{
-  "doc_id": "projA_001",
-  "content": "실시간 알림 시스템은 Kafka 기반으로...",
-  "metadata": {
-    "project": "A 프로젝트",
-    "customer": "삼성",
-    "type": "기능",
-    "date": "2024",
-    "stack": ["Kafka", "Spring"],
-    "source": "A_설계서.pdf"
-  }
-}
+```text
+User
+  -> SupervisorAgent
+     -> 문서 요약 파이프라인
+     -> 사내 문서 검색 파이프라인
+     -> 병렬 비교 파이프라인
+     -> GitHub 검색 파이프라인
 ```
+
+## 에이전트 구조
+
+```mermaid
+flowchart TD
+    U[User Query] --> S[SupervisorAgent]
+
+    S -->|문서 요약 요청| D1
+    S -->|사내 문서 검색 요청| R1
+    S -->|내부 문서 + 웹 비교 요청| P1
+    S -->|GitHub 검색 요청| G1
+
+    subgraph DOCU[run_sequential_docu_summary_pipeline]
+        D1[QueryRewriteAgent]
+        D2[DocuGenerationAgent]
+        D1 --> D2
+    end
+
+    subgraph RAG[run_sequential_rag_pipeline]
+        R1[RagRewriteAgent]
+        R2[RAGSearchAgent]
+        R3[RagAnswerAgent]
+        R1 --> R2 --> R3
+    end
+
+    subgraph TECH[run_parallel_tech_compare_pipeline]
+        P1[ParallelRewriteAgent]
+        P2[ParallelCollectAgent]
+        P3[ParallelMergeAgent]
+        P4[ParallelAnswerAgent]
+        P1 --> P2 --> P3 --> P4
+
+        subgraph COLLECT[Parallel Collect]
+            W[ParallelWebSearchAgent]
+            V[ParallelRAGSearchAgent]
+        end
+
+        P2 --> W
+        P2 --> V
+    end
+
+    subgraph GITHUB[run_github_search_pipeline]
+        G1[GitHubRewriteAgent]
+        G2[GitHubSearchAgent]
+        G3[GitHubAnswerAgent]
+        G1 --> G2 --> G3
+    end
+```
+
+## 파이프라인 상세
+
+### 1. 문서 요약 파이프라인
+
+- `QueryRewriteAgent`
+- `DocuGenerationAgent`
+
+`DocuGenerationAgent`는 `artifact_read_tool`을 통해 업로드된 파일을 읽고 요약을 만든다.
+
+### 2. 사내 문서 검색 파이프라인
+
+- `RagRewriteAgent`
+- `RAGSearchAgent`
+- `RagAnswerAgent`
+
+`RAGSearchAgent`는 `search_datastore()`를 호출해 Vertex AI Search(Data Store)에서 문서를 찾는다. 현재 필터에서 사용하는 허용 필드는 `doc_type`, `doc_category`, `doc_title`이다.
+
+### 3. 병렬 기술 비교 파이프라인
+
+- `ParallelRewriteAgent`
+- `ParallelCollectAgent`
+  - `ParallelWebSearchAgent`
+  - `ParallelRAGSearchAgent`
+- `ParallelMergeAgent`
+- `ParallelAnswerAgent`
+
+웹 검색은 `google_search`, 내부 검색은 `search_vertex_rag()`를 사용한다.
+
+### 4. GitHub 검색 파이프라인
+
+- `GitHubRewriteAgent`
+- `GitHubSearchAgent`
+- `GitHubAnswerAgent`
+
+GitHub 검색은 MCP 서버를 stdio 방식으로 연결해 수행한다.
 
 ## 프로젝트 구조
 
 ```text
 .
-├── main.py                         # CLI 실행 진입점
-├── agent.py                        # root_agent export
+├── agent.py
+├── main.py
 ├── app/
 │   ├── agent/
-│   │   ├── root.py                 # SupervisorAgent 정의
-│   │   ├── workflows.py            # sequential/parallel workflow 정의
-│   │   └── sub_agents.py           # RAG 검색/병합/저장용 서브에이전트
-│   ├── scripts/
-│   │   └── create_agent_engine.py  # Agent Engine 생성용 스크립트
+│   │   ├── root.py
+│   │   ├── sub_agents.py
+│   │   └── workflows.py
 │   ├── config/
-│   │   └── settings.py             # .env 로드 및 설정값 관리
+│   │   ├── mcp_servers.example.json
+│   │   └── settings.py
 │   ├── mcp/
-│   │   └── toolsets.py             # Filesystem MCP toolset
+│   │   └── toolsets.py
 │   ├── prompt/
-│   │   └── instructions.py         # 각 agent prompt
+│   │   └── instructions.py
+│   ├── scripts/
+│   │   └── create_agent_engine.py
 │   ├── services/
-│   │   ├── chat_cli.py             # 채팅 루프, session 생성, event 출력
-│   │   └── runtime_logging.py      # tool call logging callback
-│   └── tool/
-│       └── callbacks.py            # callback 연결
-└── secrets/
-
+│   │   ├── chat_cli.py
+│   │   └── runtime_logging.py
+│   ├── tool/
+│   │   └── callbacks.py
+│   └── util/
+│       └── tool.py
+├── allowed_dir/
+├── secrets/
+├── pyproject.toml
+└── uv.lock
 ```
+
+주요 파일:
+
+- [main.py]: CLI 진입점
+- [agent.py]: 외부 export용 루트 에이전트
+- [root.py]: `SupervisorAgent` 정의
+- [workflows.py]: 순차/병렬 파이프라인 구성
+- [sub_agents.py]: 개별 LLM 에이전트 팩토리
+- [instructions.py]: 각 에이전트 프롬프트
+- [tool.py]: Vertex 검색 및 artifact 도구
+- [toolsets.py]: GitHub MCP toolset 연결
+- [chat_cli.py]: Runner 및 세션 초기화, CLI 루프
+- [callbacks.py]: 라우팅 보조, 출력 정규화, 보안성 검사
 
 ## 요구 사항
 
-- Python 3.13+
-- Node.js / `npx`
+- Python 3.13 이상
+- `uv`
 - Google Cloud 프로젝트
-- Vertex AI 사용 가능한 GCP 인증
-
-`app/mcp/toolsets.py`에서 `npx @modelcontextprotocol/server-filesystem`를 사용하므로, Filesystem MCP를 쓰려면 Node 환경이 필요합니다.
+- Vertex AI 사용 가능한 인증
+- GitHub MCP 서버 실행 파일 또는 커맨드 경로
+- GitHub 검색을 사용할 경우 GitHub Personal Access Token
 
 ## 설치
-
-의존성 정의는 [pyproject.toml](adk-project-final/pyproject.toml)에 있습니다.
-
-예시:
 
 ```bash
 uv sync
 ```
 
+가상환경 활성화 예시:
 
+```bash
+source .venv/bin/activate
+```
 
+## 환경 변수
 
-추가로 GCP 인증이 필요합니다. 일반적으로 아래 둘 중 하나를 맞춰야 합니다.
+[settings.py] 기준으로 아래 값들을 사용한다.
+
+필수에 가까운 값:
+
+- `GOOGLE_CLOUD_PROJECT`
+- `GOOGLE_CLOUD_LOCATION`
+- `REASONING_ENGINE_APP_NAME`
+- `REASONING_ENGINE_ID`
+- `DISCOVERY_ENGINE_LOCATION`
+- `DISCOVERY_ENGINE_ENGINE_ID`
+
+기능별 추가 값:
+
+- `VERTEX_RAG_LOCATION`
+- `VERTEX_RAG_CORPUS`
+- `GITHUB_MCP_SERVER_PATH`
+- `GITHUB_PERSONAL_ACCESS_TOKEN`
+- `FILESYSTEM_ALLOWED_DIR`
+- `MODEL_GEMINI_2_5_FLASH`
+
+인증은 일반적으로 아래 둘 중 하나를 사용한다.
 
 - `gcloud auth application-default login`
 - `GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json`
 
+예시:
 
+```env
+GOOGLE_CLOUD_PROJECT=your-gcp-project
+GOOGLE_CLOUD_LOCATION=us-central1
+
+REASONING_ENGINE_APP_NAME=your-app-name
+REASONING_ENGINE_ID=projects/PROJECT/locations/LOCATION/reasoningEngines/ID
+
+DISCOVERY_ENGINE_LOCATION=global
+DISCOVERY_ENGINE_ENGINE_ID=your-discovery-engine-id
+
+VERTEX_RAG_LOCATION=asia-northeast3
+VERTEX_RAG_CORPUS=projects/PROJECT/locations/LOCATION/ragCorpora/CORPUS_ID
+
+GITHUB_MCP_SERVER_PATH=/absolute/path/to/github-mcp-server
+GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxx
+
+FILESYSTEM_ALLOWED_DIR=/absolute/path/to/allowed_dir
+MODEL_GEMINI_2_5_FLASH=gemini-2.5-flash
+```
+
+## Agent Engine 생성
+
+`REASONING_ENGINE_ID`가 없다면 아래 스크립트로 Agent Engine을 만들 수 있다.
+
+```bash
+python app/scripts/create_agent_engine.py
+```
+
+출력된 리소스 이름을 `.env`의 `REASONING_ENGINE_ID`에 넣으면 된다.
 
 ## 실행
 
 CLI 실행:
 
 ```bash
-python3 main.py
+python main.py
 ```
 
-
-## 에이전트 구조
-
-현재 구조는 `SupervisorAgent`가 사용자 질의를 보고 4개의 워크플로우 툴 중 하나를 선택해 실행하는 형태입니다.
-
-```mermaid
-flowchart TD
-    U[User Query] --> S[SupervisorAgent<br/>LlmAgent]
-
-    S -->|문서 요약 요청| D1
-    S -->|사내 문서 검색 요청| R1
-    S -->|사내 문서 + 웹 비교 요청| P1
-    S -->|GitHub 코드/저장소 검색 요청| G1
-
-    subgraph DOCU[run_sequential_docu_summary_pipeline]
-        D1[DocuRewriteAgent<br/>output: docu_rewrite]
-        D2[DocuGenerationAgent<br/>tool: filesystem_toolset<br/>output: summary]
-        D1 --> D2
-    end
-
-    subgraph RAG[run_sequential_rag_pipeline]
-        R1[RagRewriteAgent<br/>output: rag_rewrite]
-        R2[RAGSearchAgent<br/>tool: search_vertex_rag<br/>output: rag_result]
-        R3[RagAnswerAgent<br/>output: answer]
-        R1 --> R2 --> R3
-    end
-
-    subgraph TECH[run_parallel_tech_compare_pipeline]
-        P1[ParallelRewriteAgent<br/>output: parallel_rewrite]
-        P2[ParallelCollectAgent<br/>ParallelAgent]
-        P3[ParallelMergeAgent<br/>output: parallel_merged_result]
-        P4[ParallelAnswerAgent<br/>output: parallel_answer]
-        P1 --> P2 --> P3 --> P4
-
-        subgraph COLLECT[Parallel Collect]
-            W[ParallelWebSearchAgent<br/>tool: google_search<br/>output: parallel_web_result]
-            G[ParallelRAGSearchAgent<br/>tool: search_vertex_rag<br/>output: parallel_rag_result]
-        end
-
-        P2 --> W
-        P2 --> G
-    end
-
-    subgraph GITHUB[run_github_search_pipeline]
-        G1[GitHubRewriteAgent<br/>output: github_rewrite]
-        G2[GitHubSearchAgent<br/>tool: github_mcp_toolset<br/>output: github_search_result]
-        G3[GitHubAnswerAgent<br/>output: github_answer]
-        G1 --> G2 --> G3
-    end
-```
-
-### 1. Root Agent
-
-[app/agent/root.py]
-
-- 루트 에이전트는 `SupervisorAgent` 하나입니다.
-- 타입은 `LlmAgent`이며 모델은 `settings.model`을 사용합니다.
-- `supervisor_instruction`을 통해 아래 4개 워크플로우 툴 중 하나를 선택하도록 유도합니다.
-  - `run_sequential_docu_summary_pipeline`
-  - `run_parallel_tech_compare_pipeline`
-  - `run_sequential_rag_pipeline`
-  - `run_github_search_pipeline`
-- 실제 `tools` 등록은 다음 4개 `AgentTool`입니다.
-  - `docu_summary_tool`
-  - `tech_compare_tool`
-  - `rag_tool`
-  - `github_search_tool`
-- `before_agent_callback`이 연결되어 있어, 사내 문서/프로젝트 관련 질문이 아니면 실행 전에 차단합니다.
-
-라우팅 기준은 다음과 같습니다.
-
-- 첨부 파일이나 긴 문서 본문 요약 요청: `run_sequential_docu_summary_pipeline`
-- 사내 문서/내부 기술 자료 검색 요청: `run_sequential_rag_pipeline`
-- 사내 문서와 외부 웹 최신 정보의 비교/보완 요청: `run_parallel_tech_compare_pipeline`
-- GitHub 저장소/코드베이스 탐색 요청: `run_github_search_pipeline`
-
-### 2. Workflow 계층
-
-[app/agent/workflows.py]
-
-각 파이프라인은 ADK의 `SequentialAgent` 또는 `ParallelAgent` 조합으로 구성됩니다.
-
-#### `run_sequential_docu_summary_pipeline()`
-
-- 타입: `SequentialAgent`
-- 실행 순서:
-  1. `DocuRewriteAgent`
-  2. `DocuGenerationAgent`
-
-역할:
-
-- 사용자의 요약 요청을 문서 요약용 지시문으로 재작성
-- 필요 시 filesystem MCP로 파일을 읽은 뒤 요약 생성
-
-#### `run_sequential_rag_pipeline()`
-
-- 타입: `SequentialAgent`
-- 실행 순서:
-  1. `RagRewriteAgent`
-  2. `RAGSearchAgent`
-  3. `RagAnswerAgent`
-
-역할:
-
-- 사용자 질문을 검색형 질의로 재작성
-- `search_vertex_rag` 도구로 Vertex RAG corpus 검색
-- 검색 결과만 근거로 최종 답변 생성
-
-#### `run_parallel_tech_compare_pipeline()`
-
-- 타입: `SequentialAgent`
-- 실행 순서:
-  1. `ParallelRewriteAgent`
-  2. `ParallelCollectAgent`
-  3. `ParallelMergeAgent`
-  4. `ParallelAnswerAgent`
-
-이 중 `ParallelCollectAgent`는 내부적으로 `ParallelAgent`이며 아래 두 검색을 동시에 수행합니다.
-
-- `ParallelWebSearchAgent`
-- `ParallelRAGSearchAgent`
-
-역할:
-
-- 질문을 검색형 질의로 정리
-- 웹 검색과 Vertex RAG 검색을 병렬 수집
-- 두 결과를 병합
-- 내부 문서 근거와 외부 최신 정보를 함께 반영한 답변 생성
-
-#### `run_github_search_pipeline()`
-
-- 타입: `SequentialAgent`
-- 실행 순서:
-  1. `GitHubRewriteAgent`
-  2. `GitHubSearchAgent`
-  3. `GitHubAnswerAgent`
-
-역할:
-
-- 사용자 질문을 GitHub 검색용 질의로 재작성
-- `github_mcp_toolset`으로 저장소/코드 검색 수행
-- 검색 결과만 바탕으로 최종 답변 생성
-
-### 3. Sub Agent 상세
-
-[app/agent/sub_agents.py]
-
-현재 서브 에이전트는 아래처럼 나뉩니다.
-
-#### 문서 요약 파이프라인
-
-- `DocuRewriteAgent`
-  - 출력 키: `docu_rewrite`
-  - 사용자의 요약 요청을 다음 단계용 지시문으로 변환
-- `DocuGenerationAgent`
-  - 도구: `filesystem_toolset`
-  - 출력 키: `summary`
-  - 파일 경로가 포함된 요청이면 MCP filesystem 도구로 파일을 읽고 요약 생성
-  - `after_agent_callback`으로 요약 구조를 후검증
-
-#### RAG 파이프라인
-
-- `RagRewriteAgent`
-  - 출력 키: `rag_rewrite`
-  - RAG 검색에 적합한 질의로 재작성
-- `RAGSearchAgent`
-  - 도구: `search_vertex_rag`
-  - 출력 키: `rag_result`
-  - Vertex RAG corpus 검색 수행
-- `RagAnswerAgent`
-  - 출력 키: `answer`
-  - 검색 결과 기반 최종 답변 생성
-  - `after_agent_callback`으로 근거 기반 응답 여부 검증
-
-#### 병렬 비교 파이프라인
-
-- `ParallelRewriteAgent`
-  - 출력 키: `parallel_rewrite`
-  - 웹 검색과 RAG 검색 공용 질의 생성
-- `ParallelWebSearchAgent`
-  - 도구: `google_search`
-  - 출력 키: `parallel_web_result`
-  - 외부 공개 정보 검색
-- `ParallelRAGSearchAgent`
-  - 도구: `search_vertex_rag`
-  - 출력 키: `parallel_rag_result`
-  - 내부 문서 검색
-- `ParallelMergeAgent`
-  - 출력 키: `parallel_merged_result`
-  - 웹/RAG 결과를 비교 가능한 형태로 병합
-- `ParallelAnswerAgent`
-  - 출력 키: `parallel_answer`
-  - 병합 결과를 기반으로 최종 비교 답변 생성
-  - `after_agent_callback`으로 비교/추천 형식 검증
-
-#### GitHub 검색 파이프라인
-
-- `GitHubRewriteAgent`
-  - 출력 키: `github_rewrite`
-  - GitHub 검색에 맞는 질의로 재작성
-- `GitHubSearchAgent`
-  - 도구: `github_mcp_toolset`
-  - 출력 키: `github_search_result`
-  - GitHub MCP 서버를 통해 저장소/코드 검색 수행
-- `GitHubAnswerAgent`
-  - 출력 키: `github_answer`
-  - 검색 결과 기반 최종 답변 생성
-  - `after_agent_callback`으로 응답 형식 검증
-
-### 4. 상태 전달 방식
-
-파이프라인 내부 에이전트들은 ADK state에 저장되는 `output_key`를 통해 결과를 다음 단계로 넘깁니다.
-
-- 문서 요약: `docu_rewrite` -> `summary`
-- RAG: `rag_rewrite` -> `rag_result` -> `answer`
-- 병렬 비교: `parallel_rewrite` -> `parallel_web_result` / `parallel_rag_result` -> `parallel_merged_result` -> `parallel_answer`
-- GitHub 검색: `github_rewrite` -> `github_search_result` -> `github_answer`
-
-### 5. 콜백 역할
-
-[app/tool/callbacks.py]
-
-- `before_agent_callback`
-  - 사용자 질문을 `user_query`로 state에 저장
-  - 사내 문서/프로젝트 관련 키워드가 없으면 루트 단계에서 응답 차단
-- `after_agent_callback`
-  - `RagAnswerAgent`: 추측성 표현 여부, grounding 문구, 검색 결과 존재 여부 검증
-  - `DocuGenerationAgent`: 요약 결과 최소 구조 검증
-  - `ParallelAnswerAgent`: 비교/추천 형식 검증
-  - `GitHubAnswerAgent`: 검색 결과 기반 응답 형식 검증
-
-
-
-## RAG 검색 방식
-
-`search_vertex_rag(query: str)`는 `google.genai.Client(vertexai=True, ...)`를 사용해 `generate_content(...)` 호출 안에 retrieval tool을 붙이는 방식입니다.
-
-설정 포인트:
-
-- corpus: `VERTEX_RAG_CORPUS`
-- top-k: `5`
-- vector distance threshold: `0.3`
-- ranking model: `semantic-ranker-512`
-
-RAG 검색에 필요한 값이 비어 있으면 문자열 에러 메시지를 반환하도록 되어 있습니다.
-
-## MCP Filesystem
-
-[app/mcp/toolsets.py]
-
-Filesystem MCP 서버는 아래 명령으로 연결되도록 정의돼 있습니다.
-
-```bash
-npx -y @modelcontextprotocol/server-filesystem <allowed_dir>
-```
-
-허용된 tool:
-
-- `read_file`
-- `read_multiple_files`
-- `list_directory`
-- `directory_tree`
-- `search_files`
-- `get_file_info`
-- `write_file`
-- `edit_file`
-- `create_directory`
-- `list_allowed_directories`
-
-## 로그 출력
-
-[app/services/runtime_logging.py]
-
-현재 출력되는 정보:
-
-- agent 이름
-- tool 이름
-- tool 인자
-
-또한 `chat_cli.py`에서 함수 호출과 함수 응답을 별도로 출력합니다.
+실행 시:
+
+- Vertex AI 세션이 생성된다
+- 함수 호출 로그가 터미널에 출력된다
+- `exit` 또는 `quit` 입력 시 종료된다
 
 ## 예시 질문
 
-- Kafka 기반 실시간 알림 시스템 구현 사례
-- 캠페인 사례 보여줘
-- AI Agent 최신 기술이랑 사내 보유 기술사례 비교하고 추천해줘
-- 사내에서 진행했던 DidimRAG 프로젝트의 기술과 최신 RAG 기술을 비교 및 요약해줘.
+- `사내 문서에서 AgentBuilder 매뉴얼 찾아줘`
+- `사내 AgentBuilder 구조랑 최신 Agent사례 웹에서 찾고 비교해줘`
+- `이 저장소 관련 PR 흐름 알려줘`
+- `업로드한 문서 요약해줘`
 
+## 구현 메모
 
+- 사내 문서 검색은 `search_datastore()`를 사용한다.
+- RAG 검색용 `filter_expr`에서는 현재 `tags` 필드를 사용하지 않는다.
+- GitHub 검색은 [toolsets.py]의 stdio MCP 연결에 의존한다.
+- CLI 세션은 [chat_cli.py]에서 `VertexAiSessionService`로 관리한다.
+
+## 제한 사항
+
+- GitHub MCP 서버 경로가 올바르지 않으면 GitHub 파이프라인은 동작하지 않는다.
+- Discovery Engine 또는 Vertex RAG 리소스가 준비되지 않으면 내부 문서 검색 파이프라인은 실패한다.
+- 문서 업로드 요약은 ADK artifact 흐름에 의존하므로, CLI 사용 방식에 따라 별도 업로드 처리 구성이 필요할 수 있다.
