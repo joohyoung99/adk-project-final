@@ -11,7 +11,7 @@ from app.prompt.instructions import (
     parallel_merge_instruction,
     parallel_answer_instruction,
 
-    docu_rewrite_instruction,
+    query_rewrite_instruction,
     docu_generation_instruction,
 
     github_rewrite_instruction,
@@ -34,7 +34,7 @@ __all__ = [
     "parallel_merge_instruction",
     "parallel_answer_instruction",
     
-    "docu_rewrite_instruction",
+    "query_rewrite_instruction",
     "docu_generation_instruction",
 
     "github_rewrite_instruction",

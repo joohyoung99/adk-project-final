@@ -15,8 +15,8 @@ from app.agent.sub_agents import (
     make_rag_search_agent,
     make_rag_answer_agent,
 
-    make_docu_rewrite_agent, #추가
-    make_docu_generation_agent, #추가
+    make_query_rewrite_agent,
+    make_docu_generation_agent, 
 
 
     make_github_rewrite_agent,
@@ -49,12 +49,12 @@ def run_parallel_tech_compare_pipeline() -> SequentialAgent:
 
 
 def run_sequential_docu_summary_pipeline() -> SequentialAgent:
-    """문서 요약용 순차 파이프라인 골격을 구성한다."""
+    """문서 요약용 순차 파이프라인읊구성한다."""
     return SequentialAgent(
     name="run_sequential_docu_summary_pipeline",
     sub_agents=[
-       make_docu_rewrite_agent(),    # 쿼리 재작성 Agent 추가
-       make_docu_generation_agent(),  # 답변 생성 Agent 추가 
+       make_query_rewrite_agent(),   
+       make_docu_generation_agent(),  
     ],
     description="사용자의 문서를 받고 요약 응답한다.",
 )
