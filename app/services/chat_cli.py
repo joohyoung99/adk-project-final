@@ -43,7 +43,6 @@ def print_event_debug(event: object) -> None:
 def print_banner() -> None:
     """CLI 시작 시 기본 안내 문구를 출력한다."""
     print("GCP 기반 사내 솔루션 문답 Agent")
-    print(f"Filesystem allowed dirs: {', '.join(settings.filesystem_allowed_dirs)}")
     # TODO : GCP 환경 연결 상태도 보여주기
     print("종료: exit")
 
@@ -70,7 +69,7 @@ async def run_chat_cli() -> None:
         artifact_service=artifact_service,
     )
     session = await session_service.create_session(
-        app_name=settings.google_agent_engine,
+        app_name=settings.google_agent_engine_name,
         user_id=settings.user_id,
     )
 

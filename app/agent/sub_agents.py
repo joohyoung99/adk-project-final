@@ -6,7 +6,7 @@ from google.adk.tools import google_search
 from google.genai import types
 
 from app.config.settings import settings
-from app.mcp.toolsets import filesystem_toolset, github_mcp_toolset
+from app.mcp.toolsets import github_mcp_toolset
 
 from app.util.tool import artifact_read_tool , rag_search_tool
 
