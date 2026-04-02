@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from mcp import StdioServerParameters
 
-from google.adk.tools.mcp_tool import MCPToolset
+from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import (
     StdioConnectionParams,
 )
@@ -12,7 +12,7 @@ from app.config.settings import settings
 
 
 
-github_mcp_toolset = MCPToolset(
+github_mcp_toolset = McpToolset(
     connection_params=StdioConnectionParams(
         server_params=StdioServerParameters(
             command=settings.github_mcp_server_path,
