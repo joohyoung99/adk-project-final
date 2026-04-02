@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import re
+import time
 from typing import Any
 from google import genai
 from google.genai import types
@@ -12,6 +14,8 @@ from app.config.settings import settings
 import asyncio
 from google.adk.tools import FunctionTool
 from google.adk.tools.tool_context import ToolContext
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -224,10 +228,66 @@ def search_datastore(
         ),
     )
 
-    try:
-        pager = client.search(request=request)
-    except Exception as e:
-        return {"error": f"Discovery Engine 검색 실패: {e}"}
+    started_at = time.time()
+    pager = None
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            pager = client.search(request=request)
+            break
+        except Exception as e:
+            last_error = e
+            logger.warning(
+                "discovery_search_attempt_failed attempt=%d query=%r engine_id=%s error=%s",
+                attempt + 1,
+                query[:120],
+                engine_id,
+                str(e),
+            )
+            # 일시적인 5xx 장애를 고려해 짧게 재시도한다.
+            if attempt < 2:
+                time.sleep(1 + attempt)
+
+    if pager is None:
+        discovery_error = f"Discovery Engine 검색 실패: {last_error}"
+        # Discovery Engine 장애 시 Vertex RAG 검색으로 폴백한다.
+        fallback_answer = search_vertex_rag(query)
+        if fallback_answer and not fallback_answer.startswith("Vertex RAG 검색 실패"):
+            elapsed_ms = int((time.time() - started_at) * 1000)
+            logger.error(
+                "discovery_search_fallback_used metric=fallback_used count=1 query=%r engine_id=%s elapsed_ms=%d",
+                query[:120],
+                engine_id,
+                elapsed_ms,
+            )
+            return {
+                "query": query,
+                "filter": sanitized_filter_expr,
+                "total_size": 1,
+                "summary": fallback_answer,
+                "results": [
+                    {
+                        "id": "vertex-rag-fallback",
+                        "title": "Vertex RAG Fallback Result",
+                        "uri": "",
+                        "snippet": fallback_answer,
+                        "doc_type": "fallback",
+                        "doc_title": "Vertex RAG Fallback Result",
+                        "doc_description": discovery_error,
+                        "doc_category": "fallback",
+                        "struct_data": {"fallback_reason": discovery_error},
+                    }
+                ],
+            }
+        elapsed_ms = int((time.time() - started_at) * 1000)
+        logger.error(
+            "discovery_search_fallback_failed metric=fallback_failed count=1 query=%r engine_id=%s elapsed_ms=%d error=%s",
+            query[:120],
+            engine_id,
+            elapsed_ms,
+            discovery_error,
+        )
+        return {"error": discovery_error}
 
     raw_response = getattr(pager, "_response", None)
     summary_text = ""
