@@ -23,10 +23,7 @@ class Settings:
     vertex_rag_corpus: str = os.getenv("VERTEX_RAG_CORPUS","") 
     google_cloud_project: str = os.getenv("GOOGLE_CLOUD_PROJECT", "")
     google_cloud_location: str = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-    reasoning_engine_location: str = os.getenv(
-        "REASONING_ENGINE_LOCATION",
-        os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"),
-    )
+    reasoning_engine_location: str = os.getenv("REASONING_ENGINE_LOCATION",os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"),)
     google_agent_engine_name: str = os.getenv("REASONING_ENGINE_APP_NAME","")
     google_agent_engine: str = os.getenv("REASONING_ENGINE_ID","")
     github_mcp_server_path: str = os.getenv("GITHUB_MCP_SERVER_PATH", "")

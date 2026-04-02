@@ -26,7 +26,7 @@ def search_vertex_rag(query: str) -> str:
     """Vertex RAG corpus를 조회해 질의 결과를 텍스트로 반환한다."""
 
     project = settings.google_cloud_project
-    location = settings.google_cloud_location
+    location = settings.vertex_rag_location
     rag_corpus = settings.vertex_rag_corpus
     
     if not project:
