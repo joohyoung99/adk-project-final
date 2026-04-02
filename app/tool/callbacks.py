@@ -335,6 +335,25 @@ def _looks_like_follow_up(user_text: str) -> bool:
     return False
 
 
+def _needs_clarification(user_text: str) -> bool:
+    """
+    너무 짧고 도메인 힌트가 없는 입력은 라우팅 전 명확화 대상으로 본다.
+    """
+    if not user_text:
+        return False
+
+    if len(user_text) > 8:
+        return False
+
+    if _mentions_internal_doc_keyword(user_text) or _mentions_github_keyword(user_text):
+        return False
+
+    if _looks_like_follow_up(user_text):
+        return False
+
+    return True
+
+
 def _is_obviously_out_of_scope(user_text: str) -> bool:
     if not user_text:
         return False
@@ -364,6 +383,12 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
     if user_text:
         _state_set(callback_context, "user_query", user_text)
         _state_set(callback_context, "last_user_query", user_text)
+
+    # 라우팅 전에 짧고 애매한 입력을 먼저 명확화한다.
+    if _needs_clarification(user_text):
+        return _build_model_content(
+            "질문 의도를 조금 더 구체적으로 적어 주세요. <br>예: 문서명/프로젝트명/저장소명 + 궁금한 항목(원인, 비교, 설정 방법 등)."
+        )
 
     if _mentions_internal_doc_keyword(user_text):
         _state_set(callback_context, "internal_doc_mode", "true")
