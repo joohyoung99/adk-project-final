@@ -1,0 +1,14 @@
+.venv/
+.git/
+.gitignore
+.vscode/
+.qodo/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.env
+secrets/
+*.md
+ui/node_modules/
+ui/dist/
