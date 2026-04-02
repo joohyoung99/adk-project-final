@@ -16,22 +16,34 @@ steps:
       - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}"
 
   - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
     args:
-      - "run"
-      - "deploy"
-      - "${_SERVICE}-${_ENV}"
-      - "--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${BUILD_ID}"
-      - "--region=${_REGION}"
-      - "--platform=managed"
-      - "--allow-unauthenticated"
-      - "--service-account=${_RUN_SA}"
-      - "--set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${_REGION},GOOGLE_GENAI_USE_VERTEXAI=1,LOG_LEVEL=${_LOG_LEVEL},ENV=${_ENV},REASONING_ENGINE_APP_NAME=${_REASONING_ENGINE_APP_NAME},REASONING_ENGINE_ID=${_REASONING_ENGINE_ID},REASONING_ENGINE_LOCATION=${_REASONING_ENGINE_LOCATION},VERTEX_RAG_LOCATION=${_VERTEX_RAG_LOCATION},VERTEX_RAG_CORPUS=${_VERTEX_RAG_CORPUS},DISCOVERY_ENGINE_ENGINE_ID=${_DISCOVERY_ENGINE_ENGINE_ID},DISCOVERY_ENGINE_LOCATION=${_DISCOVERY_ENGINE_LOCATION}"
-      - "--min-instances=${_MIN_INSTANCES}"
-      - "--max-instances=${_MAX_INSTANCES}"
-      - "--memory=${_MEMORY}"
-      - "--cpu=${_CPU}"
-      - "--timeout=${_TIMEOUT}"
-      - "--concurrency=${_CONCURRENCY}"
+      - "-ceu"
+      - |
+        SERVICE_NAME="${_SERVICE}-${_ENV}"
+
+        if [ -z "${_VERTEX_RAG_CORPUS}" ]; then
+          echo "ERROR: _VERTEX_RAG_CORPUS is empty. Pass it via --substitutions."
+          exit 1
+        fi
+        if [ -z "${_DISCOVERY_ENGINE_ENGINE_ID}" ]; then
+          echo "ERROR: _DISCOVERY_ENGINE_ENGINE_ID is empty. Pass it via --substitutions."
+          exit 1
+        fi
+
+        gcloud run deploy "$${SERVICE_NAME}" \
+          --image="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${BUILD_ID}" \
+          --region="${_REGION}" \
+          --platform=managed \
+          --allow-unauthenticated \
+          --service-account="${_RUN_SA}" \
+          --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${_REGION},GOOGLE_GENAI_USE_VERTEXAI=1,LOG_LEVEL=${_LOG_LEVEL},ENV=${_ENV},REASONING_ENGINE_APP_NAME=${_REASONING_ENGINE_APP_NAME},REASONING_ENGINE_ID=${_REASONING_ENGINE_ID},REASONING_ENGINE_LOCATION=${_REASONING_ENGINE_LOCATION},VERTEX_RAG_LOCATION=${_VERTEX_RAG_LOCATION},VERTEX_RAG_CORPUS=${_VERTEX_RAG_CORPUS},DISCOVERY_ENGINE_ENGINE_ID=${_DISCOVERY_ENGINE_ENGINE_ID},DISCOVERY_ENGINE_LOCATION=${_DISCOVERY_ENGINE_LOCATION}" \
+          --min-instances="${_MIN_INSTANCES}" \
+          --max-instances="${_MAX_INSTANCES}" \
+          --memory="${_MEMORY}" \
+          --cpu="${_CPU}" \
+          --timeout="${_TIMEOUT}" \
+          --concurrency="${_CONCURRENCY}"
 
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
@@ -55,7 +67,7 @@ substitutions:
   _MAX_INSTANCES: "10"
   _MEMORY: "2Gi"
   _CPU: "2"
-  _TIMEOUT: "60s"
+  _TIMEOUT: "180s"
   _CONCURRENCY: "20"
   _LOG_LEVEL: "INFO"
   _REASONING_ENGINE_APP_NAME: ""

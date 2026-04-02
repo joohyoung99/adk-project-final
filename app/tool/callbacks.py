@@ -387,7 +387,7 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
     # 라우팅 전에 짧고 애매한 입력을 먼저 명확화한다.
     if _needs_clarification(user_text):
         return _build_model_content(
-            "질문 의도를 조금 더 구체적으로 적어 주세요. <br>예: 문서명/프로젝트명/저장소명 + 궁금한 항목(원인, 비교, 설정 방법 등)."
+            "질문 의도를 조금 더 구체적으로 작성해 주세요.예: 문서명/프로젝트명/저장소명 + 궁금한 항목(원인, 비교, 설정 방법 등)"
         )
 
     if _mentions_internal_doc_keyword(user_text):
@@ -414,7 +414,7 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
 
     if _is_obviously_out_of_scope(user_text):
         return _build_model_content(
-            "이 에이전트는 사내 문서, 사내 프로젝트, 내부 기술 자료, GitHub 저장소 관련 질문만 처리합니다. "
+            "이 에이전트는 사내 문서, 사내 프로젝트, 내부 기술 자료, GitHub 저장소 관련 질문만 처리합니다.\n"
             "문서명, 프로젝트명, 저장소명, 브랜치명, 파일명 같은 업무 문맥을 포함해 다시 질문해 주세요."
         )
 

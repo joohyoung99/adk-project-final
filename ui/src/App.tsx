@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 
 type ChatMessage = {
   id: number
@@ -35,6 +35,14 @@ type LogEntry = {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 const CHAT_STORAGE_KEY = 'didim-rag-chat-state-v1'
+const SAKURA_PETALS = Array.from({ length: 28 }, (_, index) => ({
+  left: `${(index * 7 + 5) % 100}%`,
+  delay: `${(index * 0.6) % 9}s`,
+  duration: `${7 + (index % 6)}s`,
+  drift: `${-40 + (index % 9) * 10}px`,
+  size: `${14 + (index % 6) * 3}px`,
+  opacity: (0.45 + (index % 5) * 0.1).toFixed(2),
+}))
 
 const formatTime = () =>
   new Date().toLocaleTimeString('ko-KR', {
@@ -310,8 +318,28 @@ function App() {
   }
 
   return (
-    <div className="min-h-full bg-gradient-to-b from-rose-100 via-pink-50 to-white px-4 py-6">
-      <div className="mx-auto grid h-[90vh] w-full max-w-7xl grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)_300px]">
+    <div className="relative min-h-full overflow-hidden bg-gradient-to-b from-rose-100 via-pink-50 to-white px-4 py-6">
+      <div className="sakura-layer" aria-hidden="true">
+        {SAKURA_PETALS.map((petal, index) => (
+          <span
+            key={`sakura-${index}`}
+            className="sakura-petal"
+            style={
+              {
+                left: petal.left,
+                animationDelay: petal.delay,
+                animationDuration: petal.duration,
+                fontSize: petal.size,
+                opacity: petal.opacity,
+                '--drift-x': petal.drift,
+              } as CSSProperties
+            }
+          >
+            🌸
+          </span>
+        ))}
+      </div>
+      <div className="relative z-10 mx-auto grid h-[90vh] w-full max-w-7xl grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)_300px]">
         <aside className="hidden overflow-hidden rounded-2xl border border-pink-200/80 bg-white/90 shadow-xl backdrop-blur lg:flex lg:flex-col">
           <div className="flex items-center justify-between border-b border-pink-100 bg-pink-100/60 px-4 py-3">
             <h2 className="text-sm font-semibold text-rose-700">대화 히스토리</h2>

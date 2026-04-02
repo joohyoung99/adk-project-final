@@ -34,9 +34,12 @@ async def query(
     try:
         _verify_api_key(x_api_key)
         executor = request.app.state.executor
+        # user_id가 없으면 request_id를 임시 user_id로 사용 (세션 격리)
+        user_id = body.user_id or f"anon-{request_id}"
         result = await executor.execute(
             query=body.query,
             session_id=body.session_id,
+            user_id=user_id,
         )
 
         latency_ms = int((time.time() - start_time) * 1000)
