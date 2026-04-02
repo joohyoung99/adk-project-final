@@ -13,20 +13,12 @@ load_dotenv(BASE_DIR / ".env")
 
 
 
-def _filesystem_allowed_dirs() -> list[str]:
-    """환경 변수에서 Filesystem MCP 허용 디렉터리 목록을 읽는다."""
-    raw = (os.getenv("FILESYSTEM_ALLOWED_DIR") or "").strip()
-    if raw:
-        return [item.strip() for item in raw.split(",") if item.strip()]
-    return [str(BASE_DIR / "allowed_dir")]
-
 
 @dataclass(frozen=True, slots=True)
 class Settings:
     """애플리케이션 전역 설정을 .env 기반으로 보관한다."""
     user_id: str = str(uuid.uuid4())
     model: str = os.getenv("MODEL_GEMINI_2_5_FLASH", "gemini-2.5-flash")
-    filesystem_allowed_dirs: list[str] = None  # type: ignore[assignment]
     vertex_rag_location: str = os.getenv("VERTEX_RAG_LOCATION", "asia-northeast3")
     vertex_rag_corpus: str = os.getenv("VERTEX_RAG_CORPUS","") 
     google_cloud_project: str = os.getenv("GOOGLE_CLOUD_PROJECT", "")
@@ -38,15 +30,7 @@ class Settings:
     discovery_engine_location: str = os.getenv("DISCOVERY_ENGINE_LOCATION", "global")
     discovery_engine_engine_id: str = os.getenv("DISCOVERY_ENGINE_ENGINE_ID", "")
 
-    def __post_init__(self) -> None:
-        """후처리로 파생 설정값을 채운다."""
-        object.__setattr__(self, "filesystem_allowed_dirs", _filesystem_allowed_dirs())
 
-
-    @property
-    def filesystem_allowed_dir(self) -> str:
-        """대표 허용 디렉터리 하나를 반환한다."""
-        return self.filesystem_allowed_dirs[0]
 
 
 settings = Settings()
