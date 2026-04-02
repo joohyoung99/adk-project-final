@@ -205,7 +205,6 @@ source .venv/bin/activate
 - `VERTEX_RAG_CORPUS`
 - `GITHUB_MCP_SERVER_PATH`
 - `GITHUB_PERSONAL_ACCESS_TOKEN`
-- `FILESYSTEM_ALLOWED_DIR`
 - `MODEL_GEMINI_2_5_FLASH`
 
 인증은 일반적으로 아래 둘 중 하나를 사용한다.
@@ -231,7 +230,7 @@ VERTEX_RAG_CORPUS=projects/PROJECT/locations/LOCATION/ragCorpora/CORPUS_ID
 GITHUB_MCP_SERVER_PATH=/absolute/path/to/github-mcp-server
 GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxx
 
-FILESYSTEM_ALLOWED_DIR=/absolute/path/to/allowed_dir
+
 MODEL_GEMINI_2_5_FLASH=gemini-2.5-flash
 ```
 

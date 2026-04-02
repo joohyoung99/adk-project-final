@@ -1,7 +1,7 @@
 [project]
 name = "adk-project-mcp"
 version = "0.1.0"
-description = "Google ADK multi-agent CLI with filesystem MCP, Notion MCP, and PostgreSQL session memory"
+description = "Google ADK multi-agent CLI with GitHUB MCP,  and VertexAI session memory"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
