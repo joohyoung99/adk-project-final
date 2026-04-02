@@ -10,7 +10,7 @@ from google.genai import types
 
 from agent import root_agent
 from app.config.settings import settings
-from google.adk.artifacts import InMemoryArtifactService
+from google.adk.artifacts import GcsArtifactService
 
 
 

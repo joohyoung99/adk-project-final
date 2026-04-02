@@ -28,6 +28,7 @@ class Settings:
     google_agent_engine: str = os.getenv("REASONING_ENGINE_ID","")
     github_mcp_server_path: str = os.getenv("GITHUB_MCP_SERVER_PATH", "")
     github_personal_access_token: str = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN", "")
+    github_default_repository: str = os.getenv("GITHUB_DEFAULT_REPOSITORY", "").strip()
     discovery_engine_location: str = os.getenv("DISCOVERY_ENGINE_LOCATION", "global")
     discovery_engine_engine_id: str = os.getenv("DISCOVERY_ENGINE_ENGINE_ID", "")
 

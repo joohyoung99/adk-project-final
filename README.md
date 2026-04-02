@@ -1,37 +1,30 @@
-# ADK Internal Knowledge Agent
+# ADK RAG Assistant
 
-Google ADK 기반 멀티에이전트 CLI 프로젝트다. 사용자의 질문을 보고 적절한 파이프라인으로 라우팅한 뒤, 사내 문서 검색, 웹 검색 비교, GitHub 검색, 업로드 문서 요약을 수행한다.
+Google ADK 기반 멀티 에이전트 프로젝트다. 하나의 Supervisor Agent가 사용자 요청을 분류하고, 사내 문서 검색, 내부/외부 정보 비교, GitHub 조회, 업로드 문서 요약 중 알맞은 파이프라인으로 라우팅한다.
 
-## 핵심 기능
+현재 저장소에는 아래 구성이 함께 들어 있다.
 
-- Vertex AI Search(Data Store)를 이용한 사내 문서 검색
-- Vertex RAG corpus와 Google Search를 병렬로 호출하는 기술 비교 응답
-- GitHub MCP 서버를 통한 저장소, 이슈, PR, 사용자 정보 검색
-- 업로드된 아티팩트를 읽어 문서 요약 생성
-- SupervisorAgent 기반 요청 분류와 순차/병렬 워크플로우 실행
-- Vertex AI session service 기반 대화 세션 유지
+- Python 기반 ADK 에이전트 및 FastAPI 서버
+- React + Vite 기반 채팅 UI
+- Dockerfile 및 Cloud Build 배포 설정
 
-## 동작 구조
+## 주요 기능
 
-루트 에이전트는 `SupervisorAgent`이며, 사용자 요청을 아래 네 개 파이프라인 중 하나로 보낸다.
+- Vertex AI Search(Data Store) 기반 사내 문서 검색
+- Vertex RAG corpus + 웹 검색 병렬 비교 응답
+- GitHub MCP 서버를 통한 저장소/이슈/PR/사용자 조회
+- 업로드된 파일 아티팩트 요약
+- 세션 기반 대화 유지
+- FastAPI API + 브라우저 UI 제공
 
-1. `run_sequential_docu_summary_pipeline`
-   첨부 파일이나 긴 본문을 요약할 때 사용
-2. `run_sequential_rag_pipeline`
-   사내 문서나 내부 기술 자료를 찾을 때 사용
-3. `run_parallel_tech_compare_pipeline`
-   내부 문서와 외부 웹 정보를 함께 비교할 때 사용
-4. `run_github_search_pipeline`
-   GitHub 저장소, 코드, 이슈, PR, 커밋 관련 질문일 때 사용
-
-흐름 요약:
+## 아키텍처
 
 ```text
 User
   -> SupervisorAgent
      -> 문서 요약 파이프라인
      -> 사내 문서 검색 파이프라인
-     -> 병렬 비교 파이프라인
+     -> 내부/외부 비교 파이프라인
      -> GitHub 검색 파이프라인
 ```
 
@@ -83,14 +76,12 @@ flowchart TD
     end
 ```
 
-## 파이프라인 상세
-
 ### 1. 문서 요약 파이프라인
 
 - `QueryRewriteAgent`
 - `DocuGenerationAgent`
 
-`DocuGenerationAgent`는 `artifact_read_tool`을 통해 업로드된 파일을 읽고 요약을 만든다.
+업로드된 아티팩트를 읽어 핵심 내용을 요약한다.
 
 ### 2. 사내 문서 검색 파이프라인
 
@@ -98,9 +89,9 @@ flowchart TD
 - `RAGSearchAgent`
 - `RagAnswerAgent`
 
-`RAGSearchAgent`는 `search_datastore()`를 호출해 Vertex AI Search(Data Store)에서 문서를 찾는다. 현재 필터에서 사용하는 허용 필드는 `doc_type`, `doc_category`, `doc_title`이다.
+Vertex AI Search(Data Store)를 사용한다. 검색 필터는 현재 `doc_type`, `doc_category`, `doc_title` 기준으로 생성된다.
 
-### 3. 병렬 기술 비교 파이프라인
+### 3. 내부/외부 비교 파이프라인
 
 - `ParallelRewriteAgent`
 - `ParallelCollectAgent`
@@ -109,7 +100,7 @@ flowchart TD
 - `ParallelMergeAgent`
 - `ParallelAnswerAgent`
 
-웹 검색은 `google_search`, 내부 검색은 `search_vertex_rag()`를 사용한다.
+사내 RAG 결과와 웹 검색 결과를 동시에 수집한 뒤, 충돌 여부를 포함해 병합 응답을 만든다.
 
 ### 4. GitHub 검색 파이프라인
 
@@ -117,7 +108,7 @@ flowchart TD
 - `GitHubSearchAgent`
 - `GitHubAnswerAgent`
 
-GitHub 검색은 MCP 서버를 stdio 방식으로 연결해 수행한다.
+GitHub MCP 서버를 `stdio` 방식으로 연결해 읽기 전용 조회를 수행한다.
 
 ## 프로젝트 구조
 
@@ -130,6 +121,11 @@ GitHub 검색은 MCP 서버를 stdio 방식으로 연결해 수행한다.
 │   │   ├── root.py
 │   │   ├── sub_agents.py
 │   │   └── workflows.py
+│   ├── api/
+│   │   ├── executor.py
+│   │   ├── main.py
+│   │   ├── routes/
+│   │   └── schemas/
 │   ├── config/
 │   │   ├── mcp_servers.example.json
 │   │   └── settings.py
@@ -137,8 +133,6 @@ GitHub 검색은 MCP 서버를 stdio 방식으로 연결해 수행한다.
 │   │   └── toolsets.py
 │   ├── prompt/
 │   │   └── instructions.py
-│   ├── scripts/
-│   │   └── create_agent_engine.py
 │   ├── services/
 │   │   ├── chat_cli.py
 │   │   └── runtime_logging.py
@@ -146,134 +140,204 @@ GitHub 검색은 MCP 서버를 stdio 방식으로 연결해 수행한다.
 │   │   └── callbacks.py
 │   └── util/
 │       └── tool.py
-├── allowed_dir/
-├── secrets/
+├── ui/
+│   ├── src/
+│   └── package.json
+├── Dockerfile
+├── cloudbuild.yaml
+├── env-sample
 ├── pyproject.toml
 └── uv.lock
 ```
 
-주요 파일:
+## 기술 스택
 
-- [main.py]: CLI 진입점
-- [agent.py]: 외부 export용 루트 에이전트
-- [root.py]: `SupervisorAgent` 정의
-- [workflows.py]: 순차/병렬 파이프라인 구성
-- [sub_agents.py]: 개별 LLM 에이전트 팩토리
-- [instructions.py]: 각 에이전트 프롬프트
-- [tool.py]: Vertex 검색 및 artifact 도구
-- [toolsets.py]: GitHub MCP toolset 연결
-- [chat_cli.py]: Runner 및 세션 초기화, CLI 루프
-- [callbacks.py]: 라우팅 보조, 출력 정규화, 보안성 검사
+### Backend
+
+- Python 3.13
+- Google ADK
+- FastAPI
+- Vertex AI / Vertex AI Search / Vertex RAG
+- MCP
+
+### Frontend
+
+- React 19
+- TypeScript
+- Vite
 
 ## 요구 사항
 
 - Python 3.13 이상
 - `uv`
-- Google Cloud 프로젝트
-- Vertex AI 사용 가능한 인증
-- GitHub MCP 서버 실행 파일 또는 커맨드 경로
-- GitHub 검색을 사용할 경우 GitHub Personal Access Token
+- Node.js 20 이상
+- npm
+- Google Cloud 프로젝트 및 인증
+
+선택 사항:
+
+- GitHub MCP 서버 실행 파일
+- GitHub Personal Access Token
 
 ## 설치
+
+### 1. Python 의존성 설치
 
 ```bash
 uv sync
 ```
 
-가상환경 활성화 예시:
+### 2. UI 의존성 설치
 
 ```bash
-source .venv/bin/activate
+cd ui
+npm install
+```
+
+### 3. 환경 변수 파일 준비
+
+```bash
+cp env-sample .env
 ```
 
 ## 환경 변수
 
-[settings.py] 기준으로 아래 값들을 사용한다.
+주요 항목은 아래와 같다.
 
-필수에 가까운 값:
+### 공통
 
+- `MODEL_GEMINI_2_5_FLASH`
 - `GOOGLE_CLOUD_PROJECT`
 - `GOOGLE_CLOUD_LOCATION`
+- `GOOGLE_GENAI_USE_VERTEXAI`
+
+### Reasoning Engine / 세션
+
 - `REASONING_ENGINE_APP_NAME`
 - `REASONING_ENGINE_ID`
-- `DISCOVERY_ENGINE_LOCATION`
-- `DISCOVERY_ENGINE_ENGINE_ID`
+- `REASONING_ENGINE_LOCATION`
 
-기능별 추가 값:
+`REASONING_ENGINE_APP_NAME`이 설정되면 API 실행기는 Vertex AI Session Service를 사용하고, 비어 있으면 메모리 세션을 사용한다.
+
+### RAG / 검색
 
 - `VERTEX_RAG_LOCATION`
 - `VERTEX_RAG_CORPUS`
+- `DISCOVERY_ENGINE_ENGINE_ID`
+- `DISCOVERY_ENGINE_LOCATION`
+
+### GitHub MCP
+
 - `GITHUB_MCP_SERVER_PATH`
 - `GITHUB_PERSONAL_ACCESS_TOKEN`
-- `MODEL_GEMINI_2_5_FLASH`
+- `GITHUB_DEFAULT_REPOSITORY`
 
-인증은 일반적으로 아래 둘 중 하나를 사용한다.
+### API 서버
+
+- `API_HOST`
+- `API_PORT`
+- `UVICORN_WORKERS`
+- `ALLOWED_ORIGINS`
+- `API_KEY`
+- `LOG_LEVEL`
+- `ENV`
+
+### 기타
+
+- `FILESYSTEM_ALLOWED_DIR`
+
+문서 요약 시 로컬 파일 시스템 접근 범위를 제한하는 용도다.
+
+## 인증
+
+Google Cloud 인증은 일반적으로 아래 둘 중 하나로 맞춘다.
 
 - `gcloud auth application-default login`
-- `GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json`
+- 서비스 계정 키 파일을 사용한 `GOOGLE_APPLICATION_CREDENTIALS` 설정
 
-예시:
+## 실행 방법
 
-```env
-GOOGLE_CLOUD_PROJECT=your-gcp-project
-GOOGLE_CLOUD_LOCATION=us-central1
-
-REASONING_ENGINE_APP_NAME=your-app-name
-REASONING_ENGINE_ID=projects/PROJECT/locations/LOCATION/reasoningEngines/ID
-
-DISCOVERY_ENGINE_LOCATION=global
-DISCOVERY_ENGINE_ENGINE_ID=your-discovery-engine-id
-
-VERTEX_RAG_LOCATION=asia-northeast3
-VERTEX_RAG_CORPUS=projects/PROJECT/locations/LOCATION/ragCorpora/CORPUS_ID
-
-GITHUB_MCP_SERVER_PATH=/absolute/path/to/github-mcp-server
-GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxx
-
-
-MODEL_GEMINI_2_5_FLASH=gemini-2.5-flash
-```
-
-## Agent Engine 생성
-
-`REASONING_ENGINE_ID`가 없다면 아래 스크립트로 Agent Engine을 만들 수 있다.
+### 1. CLI 실행
 
 ```bash
-python app/scripts/create_agent_engine.py
+uv run python main.py
 ```
 
-출력된 리소스 이름을 `.env`의 `REASONING_ENGINE_ID`에 넣으면 된다.
+대화형 CLI가 실행되며 `exit` 또는 `quit`으로 종료할 수 있다.
 
-## 실행
-
-CLI 실행:
+### 2. API 서버 실행
 
 ```bash
-python main.py
+uv run python -m app.api.main
 ```
 
-실행 시:
+기본 포트는 `8080`이다.
 
-- Vertex AI 세션이 생성된다
-- 함수 호출 로그가 터미널에 출력된다
-- `exit` 또는 `quit` 입력 시 종료된다
+주요 엔드포인트:
 
-## 예시 질문
+- `GET /healthz`
+- `POST /v1/query`
 
-- `사내 문서에서 AgentBuilder 매뉴얼 찾아줘`
-- `사내 AgentBuilder 구조랑 최신 Agent사례 웹에서 찾고 비교해줘`
-- `이 저장소 관련 PR 흐름 알려줘`
-- `업로드한 문서 요약해줘`
+요청 예시:
 
-## 구현 메모
+```json
+{
+  "query": "AgentBuilder 관련 사내 문서 찾아줘",
+  "session_id": null
+}
+```
 
-- 사내 문서 검색은 `search_datastore()`를 사용한다.
-- RAG 검색용 `filter_expr`에서는 현재 `tags` 필드를 사용하지 않는다.
-- GitHub 검색은 [toolsets.py]의 stdio MCP 연결에 의존한다.
-- CLI 세션은 [chat_cli.py]에서 `VertexAiSessionService`로 관리한다.
+`API_KEY`가 설정된 환경에서는 `X-API-Key` 헤더가 필요하다.
 
-## 제한 사항
+### 3. UI 개발 서버 실행
 
-- GitHub MCP 서버 경로가 올바르지 않으면 GitHub 파이프라인은 동작하지 않는다.
-- Discovery Engine 또는 Vertex RAG 리소스가 준비되지 않으면 내부 문서 검색 파이프라인은 실패한다.
-- 문서 업로드 요약은 ADK artifact 흐름에 의존하므로, CLI 사용 방식에 따라 별도 업로드 처리 구성이 필요할 수 있다.
+```bash
+cd ui
+npm run dev
+```
+
+필요하면 `.env` 또는 프런트엔드 환경 파일에 `VITE_API_BASE_URL`을 설정해 API 주소를 지정한다. 값이 비어 있으면 same-origin으로 요청한다.
+
+### 4. UI 빌드
+
+```bash
+cd ui
+npm run build
+```
+
+UI를 빌드하면 `ui/dist`가 생성되고, API 서버는 이 디렉터리가 존재할 때 정적 파일을 함께 서빙한다.
+
+## Docker
+
+멀티 스테이지 Docker 빌드를 사용한다.
+
+- 1단계: Node 환경에서 UI 빌드
+- 2단계: `uv`로 Python 의존성 설치
+- 3단계: 런타임 이미지에서 FastAPI + 정적 UI 제공
+
+이미지 실행 커맨드는 `uvicorn app.api.main:app --host 0.0.0.0 --port 8080`이다.
+
+## 배포
+
+`cloudbuild.yaml`은 아래 흐름을 기준으로 작성되어 있다.
+
+1. Docker 이미지 빌드
+2. Artifact Registry 푸시
+3. Cloud Run 배포
+4. `/healthz` 및 `/` 스모크 테스트
+
+기본 배포 대상은 Cloud Run이며, 주요 GCP 관련 환경 변수를 배포 시 주입하도록 되어 있다.
+
+## 현재 구현 기준 동작 메모
+
+- 루트 에이전트는 `SupervisorAgent` 하나다.
+- API는 `POST /v1/query`에서 최종 답변과 세션 ID를 반환한다.
+- 응답의 `citations`는 현재 빈 배열로 내려간다.
+- UI는 대화 히스토리를 브라우저 `localStorage`에 저장한다.
+- GitHub 검색은 읽기 전용 MCP 도구 설정으로 연결된다.
+
+## 개발 시 참고
+
+- 기존 `ui/README.md`는 Vite 기본 템플릿 문서라서 실제 프로젝트 설명과 다르다.
+- 저장소에 포함된 `.env` 값은 배포 또는 로컬 환경에 맞게 다시 확인해야 한다.
+- 현재 Git 작업 트리에 사용자 변경 사항이 있을 수 있으므로 문서 외 파일 수정 시 함께 검토하는 편이 안전하다.
