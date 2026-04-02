@@ -9,3 +9,40 @@ body,
 body {
   margin: 0;
 }
+
+.sakura-layer {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: 40;
+}
+
+.sakura-petal {
+  --drift-x: 30px;
+  display: block;
+  position: absolute;
+  top: -10%;
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(246, 154, 196, 0.45);
+  animation-name: sakura-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  filter: saturate(120%);
+  will-change: transform;
+}
+
+@keyframes sakura-fall {
+  0% {
+    transform: translate3d(0, -12vh, 0) rotate(0deg);
+  }
+  35% {
+    transform: translate3d(calc(var(--drift-x) * 0.6), 35vh, 0) rotate(110deg);
+  }
+  70% {
+    transform: translate3d(calc(var(--drift-x) * -0.4), 70vh, 0) rotate(220deg);
+  }
+  100% {
+    transform: translate3d(var(--drift-x), 110vh, 0) rotate(360deg);
+  }
+}

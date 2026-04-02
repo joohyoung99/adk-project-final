@@ -53,13 +53,13 @@ async def run_chat_cli() -> None:
 
     vertexai.init(
         project=settings.google_cloud_project,
-        location= settings.google_cloud_location,
+        location=settings.reasoning_engine_location,
     )
 
-
-    session_service = VertexAiSessionService(project=settings.google_cloud_project, 
-                                             location=settings.google_cloud_location,
-                                             ) 
+    session_service = VertexAiSessionService(
+        project=settings.google_cloud_project,
+        location=settings.reasoning_engine_location,
+    ) 
     artifact_service = InMemoryArtifactService()
 
     runner = Runner(

@@ -34,6 +34,10 @@ DISCOVERY_ENGINE_LOCATION=global
 ### 1. 환경변수 추출 및 배포
 
 ```bash
+# 권장: .env 값을 그대로 사용해 배포
+./deploy_from_env.sh
+
+# 또는 수동 실행
 # .env에서 환경변수 추출
 VERTEX_RAG_CORPUS=$(grep VERTEX_RAG_CORPUS .env | sed 's/.*=//')
 REASONING_ENGINE_APP_NAME=$(grep REASONING_ENGINE_APP_NAME .env | sed 's/.*=//')
@@ -45,6 +49,9 @@ DISCOVERY_ENGINE_ENGINE_ID=$(grep DISCOVERY_ENGINE_ENGINE_ID .env | sed 's/.*=//
 gcloud builds submit --config=cloudbuild.yaml \
   --substitutions="_VERTEX_RAG_CORPUS=$VERTEX_RAG_CORPUS,_DISCOVERY_ENGINE_ENGINE_ID=$DISCOVERY_ENGINE_ENGINE_ID,_REASONING_ENGINE_APP_NAME=$REASONING_ENGINE_APP_NAME,_REASONING_ENGINE_ID=$REASONING_ENGINE_ID,_REASONING_ENGINE_LOCATION=$REASONING_ENGINE_LOCATION"
 ```
+
+> `cloudbuild.yaml`은 `_VERTEX_RAG_CORPUS`, `_DISCOVERY_ENGINE_ENGINE_ID`가 비어 있으면 배포를 실패시킵니다.
+> (빈 값으로 Cloud Run 환경변수를 덮어쓰는 사고를 방지하기 위함)
 
 ### 2. 원라인 배포 스크립트
 
