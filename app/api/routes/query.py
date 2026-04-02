@@ -34,8 +34,9 @@ async def query(
     try:
         _verify_api_key(x_api_key)
         executor = request.app.state.executor
-        # user_id가 없으면 request_id를 임시 user_id로 사용 (세션 격리)
-        user_id = body.user_id or f"anon-{request_id}"
+        # user_id를 별도로 주지 않는 기존 클라이언트(UI)는 default_user로 고정해
+        # 동일 session_id 재사용 시 사용자 불일치 오류를 방지한다.
+        user_id = body.user_id or "default_user"
         result = await executor.execute(
             query=body.query,
             session_id=body.session_id,
