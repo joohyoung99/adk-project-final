@@ -60,7 +60,7 @@ async def run_chat_cli() -> None:
         project=settings.google_cloud_project,
         location=settings.reasoning_engine_location,
     ) 
-    artifact_service = InMemoryArtifactService()
+    artifact_service = GcsArtifactService()
 
     runner = Runner(
         app_name=settings.google_agent_engine_name,
